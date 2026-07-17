@@ -13,6 +13,7 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.DialogWrapper
 import com.intellij.openapi.ui.Messages
 import com.intellij.ui.TextFieldWithAutoCompletion
+import com.intellij.ui.TextFieldWithAutoCompletionListProvider
 import com.intellij.ui.components.JBCheckBox
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBScrollPane
@@ -65,9 +66,10 @@ class UnifiedRebaseDialog(
             else -> branches.firstOrNull { it != currentBranch }
         }
 
-        branchField = TextFieldWithAutoCompletion.create(
+        val provider = FuzzyBranchCompletionProvider(branches)
+        branchField = TextFieldWithAutoCompletion(
             project,
-            branches,
+            provider,
             false,
             suggestedBranch ?: ""
         )
@@ -113,6 +115,8 @@ class UnifiedRebaseDialog(
 
         gbc.gridx = 1
         gbc.weightx = 1.0
+        val filesSection = JPanel(BorderLayout(0, 6))
+
         val filesInfo = if (changedFiles.isEmpty()) {
             "无变动文件"
         } else {
@@ -121,7 +125,22 @@ class UnifiedRebaseDialog(
         filesListLabel.text = "<html><body>${filesInfo}<br><small style='color: gray;'>${
             changedFiles.take(5).joinToString("<br>")
         }${if (changedFiles.size > 5) "<br>..." else ""}</small></body></html>"
-        formPanel.add(filesListLabel, gbc)
+        filesSection.add(filesListLabel, BorderLayout.NORTH)
+
+        if (changedFiles.isNotEmpty()) {
+            val warningBanner = JBLabel(
+                "<html><body style='width: 350px; padding: 2px 0;'>" +
+                        "变基时不允许有部分未提交的文件,所有变更文件将被自动提交" +
+                        "</body></html>"
+            )
+            warningBanner.foreground = java.awt.Color(0xB3, 0x66, 0x00)
+            warningBanner.isOpaque = true
+            warningBanner.background = java.awt.Color(0xFF, 0xF4, 0xE0)
+            warningBanner.border = JBUI.Borders.empty(4, 6)
+            filesSection.add(warningBanner, BorderLayout.SOUTH)
+        }
+
+        formPanel.add(filesSection, gbc)
 
         // 提交信息
         gbc.gridx = 0
@@ -280,5 +299,50 @@ class UnifiedRebaseDialog(
             .getNotificationGroup("Git Rebase Plugin")
             .createNotification(message, com.intellij.notification.NotificationType.ERROR)
             .notify(project)
+    }
+}
+
+private class FuzzyBranchCompletionProvider(
+    branches: Collection<String>
+) : TextFieldWithAutoCompletionListProvider<String>(branches) {
+
+    override fun getLookupString(item: String): String = item
+
+    override fun compare(o1: String, o2: String): Int {
+        return o1.compareTo(o2, ignoreCase = true)
+    }
+
+    override fun createPrefixMatcher(prefix: String): com.intellij.codeInsight.completion.PrefixMatcher {
+        return FuzzyPrefixMatcher(prefix)
+    }
+}
+
+private class FuzzyPrefixMatcher(prefix: String) : com.intellij.codeInsight.completion.PrefixMatcher(prefix) {
+
+    private val matcher = com.intellij.psi.codeStyle.NameUtil.buildMatcher(
+        prefix,
+        com.intellij.psi.codeStyle.NameUtil.MatchingCaseSensitivity.NONE
+    )
+
+    override fun prefixMatches(name: String): Boolean {
+        if (myPrefix.isEmpty()) return true
+        if (name.startsWith(myPrefix, ignoreCase = true)) return true
+        return matcher.matches(name)
+    }
+
+    override fun cloneWithPrefix(newPrefix: String): com.intellij.codeInsight.completion.PrefixMatcher {
+        return if (newPrefix == myPrefix) this else FuzzyPrefixMatcher(newPrefix)
+    }
+
+    override fun isStartMatch(name: String): Boolean {
+        return name.startsWith(myPrefix, ignoreCase = true) || matcher.isStartMatch(name)
+    }
+
+    override fun matchingDegree(name: String): Int {
+        return when {
+            name.equals(myPrefix, ignoreCase = true) -> Int.MAX_VALUE
+            name.startsWith(myPrefix, ignoreCase = true) -> 1000
+            else -> matcher.matchingDegree(name)
+        }
     }
 }
