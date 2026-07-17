@@ -38,17 +38,13 @@ class MergeRequestService(private val project: Project) {
         return when (platform) {
             Platform.GITLAB -> createGitLabMR(remoteUrl, sourceBranch, targetBranch)
             Platform.GITHUB -> createGitHubPR(remoteUrl, sourceBranch, targetBranch)
-            Platform.UNKNOWN -> MergeRequestResult.NotConfigured(
-                "无法识别远程仓库平台，仅支持GitLab和GitHub\n远程URL: $remoteUrl"
-            )
         }
     }
 
     private fun detectPlatform(remoteUrl: String): Platform {
         return when {
-            remoteUrl.contains("gitlab", ignoreCase = true) -> Platform.GITLAB
-            remoteUrl.contains("github", ignoreCase = true) -> Platform.GITHUB
-            else -> Platform.UNKNOWN
+            remoteUrl.contains("github.com", ignoreCase = true) -> Platform.GITHUB
+            else -> Platform.GITLAB
         }
     }
 
@@ -262,7 +258,7 @@ class MergeRequestService(private val project: Project) {
     )
 
     private enum class Platform {
-        GITLAB, GITHUB, UNKNOWN
+        GITLAB, GITHUB
     }
 }
 
