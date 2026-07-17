@@ -42,10 +42,9 @@ class UnifiedRebaseDialog(
     private val filesListLabel: JBLabel
     private val formPanel: JPanel
 
-    private val appendWebhookCheckBox: JBCheckBox
-    private val appendJiraCheckBox: JBCheckBox
-    private val jiraNumberField: JTextField
-    private val addJiraButton: JButton
+    private val appendTypeComboBox: JComboBox<String>
+    private val appendInputField: JTextField
+    private val addAppendButton: JButton
 
     var selectedBranch: String = ""
         private set
@@ -86,19 +85,19 @@ class UnifiedRebaseDialog(
         createMRCheckBox = JBCheckBox("推送后自动提交merge请求", false)
         filesListLabel = JBLabel()
 
-        appendWebhookCheckBox = JBCheckBox("自动追加 #webhook", false)
-        appendJiraCheckBox = JBCheckBox("追加JIRA编号", false)
-        jiraNumberField = JTextField(15)
-        addJiraButton = JButton("添加")
-        addJiraButton.addActionListener { appendJiraNumber() }
+        appendTypeComboBox = JComboBox(arrayOf("Co-Authored-By", "JIRA", "#webhook", "自定义内容"))
+        appendInputField = JTextField(20)
+        addAppendButton = JButton("添加")
 
-        jiraNumberField.isEnabled = false
-        addJiraButton.isEnabled = false
-        appendJiraCheckBox.addItemListener {
-            val enabled = appendJiraCheckBox.isSelected
-            jiraNumberField.isEnabled = enabled
-            addJiraButton.isEnabled = enabled
-        }
+        appendTypeComboBox.addActionListener { updateAppendInputState() }
+        appendInputField.document.addDocumentListener(object : javax.swing.event.DocumentListener {
+            override fun insertUpdate(e: javax.swing.event.DocumentEvent) = updateAppendButtonState()
+            override fun removeUpdate(e: javax.swing.event.DocumentEvent) = updateAppendButtonState()
+            override fun changedUpdate(e: javax.swing.event.DocumentEvent) = updateAppendButtonState()
+        })
+        addAppendButton.addActionListener { appendContent() }
+
+        updateAppendInputState()
 
         formPanel = JPanel(GridBagLayout())
 
@@ -184,30 +183,30 @@ class UnifiedRebaseDialog(
         messageScroll.preferredSize = Dimension(400, 100)
         formPanel.add(messageScroll, gbc)
 
-        // 自动追加 #webhook
-        gbc.gridx = 1
+        // 自动追加内容
+        gbc.gridx = 0
         gbc.gridy = 3
-        gbc.weightx = 1.0
-        gbc.weighty = 0.0
+        gbc.weightx = 0.0
         gbc.fill = GridBagConstraints.HORIZONTAL
         gbc.anchor = GridBagConstraints.WEST
-        formPanel.add(appendWebhookCheckBox, gbc)
+        val appendLabel = JBLabel("自动追加:")
+        appendLabel.font = appendLabel.font.deriveFont(java.awt.Font.BOLD)
+        formPanel.add(appendLabel, gbc)
 
-        // JIRA编号追加
         gbc.gridx = 1
-        gbc.gridy = 4
-        val jiraPanel = JPanel()
-        jiraPanel.layout = BoxLayout(jiraPanel, BoxLayout.X_AXIS)
-        jiraPanel.add(appendJiraCheckBox)
-        jiraPanel.add(Box.createHorizontalStrut(6))
-        jiraPanel.add(jiraNumberField)
-        jiraPanel.add(Box.createHorizontalStrut(6))
-        jiraPanel.add(addJiraButton)
-        formPanel.add(jiraPanel, gbc)
+        gbc.weightx = 1.0
+        val appendPanel = JPanel()
+        appendPanel.layout = BoxLayout(appendPanel, BoxLayout.X_AXIS)
+        appendPanel.add(appendTypeComboBox)
+        appendPanel.add(Box.createHorizontalStrut(6))
+        appendPanel.add(appendInputField)
+        appendPanel.add(Box.createHorizontalStrut(6))
+        appendPanel.add(addAppendButton)
+        formPanel.add(appendPanel, gbc)
 
         // MR选项
         gbc.gridx = 1
-        gbc.gridy = 5
+        gbc.gridy = 4
         gbc.weightx = 1.0
         gbc.weighty = 0.0
         gbc.fill = GridBagConstraints.HORIZONTAL
@@ -253,11 +252,6 @@ class UnifiedRebaseDialog(
         commitMessage = messageArea.text.trim()
         shouldCreateMR = createMRCheckBox.isSelected
 
-        // 处理 #webhook 追加
-        if (appendWebhookCheckBox.isSelected && commitMessage.isNotEmpty()) {
-            commitMessage += " #webhook"
-        }
-
         // 立即关闭对话框，在后台执行
         super.doOKAction()
 
@@ -268,18 +262,45 @@ class UnifiedRebaseDialog(
         super.doCancelAction()
     }
 
-    private fun appendJiraNumber() {
-        val jiraNumber = jiraNumberField.text.trim()
-        if (jiraNumber.isEmpty()) {
-            return
+    private fun requiresInput(type: String): Boolean = type == "JIRA" || type == "自定义内容"
+
+    private fun updateAppendInputState() {
+        val type = appendTypeComboBox.selectedItem as String
+        appendInputField.isEnabled = requiresInput(type)
+        if (!requiresInput(type)) {
+            appendInputField.text = ""
+        }
+        updateAppendButtonState()
+    }
+
+    private fun updateAppendButtonState() {
+        val type = appendTypeComboBox.selectedItem as String
+        addAppendButton.isEnabled = !requiresInput(type) || appendInputField.text.isNotBlank()
+    }
+
+    private fun appendContent() {
+        val type = appendTypeComboBox.selectedItem as String
+        val input = appendInputField.text.trim()
+
+        val tag = when (type) {
+            "Co-Authored-By" -> "Co-Authored-By"
+            "JIRA" -> {
+                if (input.isEmpty()) return
+                "\$(JIRA:$input)"
+            }
+            "#webhook" -> "#webhook"
+            "自定义内容" -> {
+                if (input.isEmpty()) return
+                input
+            }
+            else -> return
         }
 
-        val tag = "\$(JIRA:$jiraNumber)"
         val current = messageArea.text
         val separator = if (current.isNotEmpty() && !current.endsWith(";") && !current.endsWith("\n")) ";" else ""
         messageArea.text = current + separator + tag
 
-        jiraNumberField.text = ""
+        appendInputField.text = ""
     }
 
     private fun executeRebaseWorkflow(currentBranch: String) {
