@@ -42,10 +42,18 @@ Test directory (`src/test/kotlin`) is still empty.
 
 Three-layer structure under `src/main/kotlin/com/examplecn/`:
 
-- **`action/`** — UI layer. `GitRebaseAndPushAction` is the `AnAction` entry point, enabled only when the project has at least one Git repository (via `GitUtil.getRepositoryManager`). It always operates on `repositories.firstOrNull()` — multi-repo projects are not disambiguated. It orchestrates two dialogs (`RebaseConfigDialog` for target branch + MR checkbox, `CommitFilesDialog` for selecting changed files and writing a commit message) and then runs the workflow in a `Task.Backgroundable` so Git operations don't block the UI thread.
-- **`service/`** — business logic. `GitRebaseService` (`@Service(Service.Level.PROJECT)`) wraps all Git4Idea `GitLineHandler` calls (fetch, rebase, push, status, add, commit, remote lookup) and translates failures into `VcsException`. Fetched via `project.service<GitRebaseService>()`.
+- **`action/`** — UI layer. `GitRebaseAndPushAction` is the `AnAction` entry point, enabled only when the project has at least one Git repository (via `GitUtil.getRepositoryManager`). It always operates on `repositories.firstOrNull()` — multi-repo projects are not disambiguated. It shows a single `UnifiedRebaseDialog` that combines all configuration and progress display:
+  - Shows target branch selection with auto-completion
+  - Displays all changed files (always selected, cannot be deselected)
+  - Collects commit message (required if there are changes)
+  - MR/PR auto-creation checkbox
+  - After confirmation, displays progress inline at bottom of dialog (no background thread)
+  - Automatically closes 2 seconds after completion
+- **`service/`** — business logic. `GitRebaseService` (`@Service(Service.Level.PROJECT)`) wraps all Git4Idea `GitLineHandler` calls (fetch, rebase, push, status, add, commit, remote lookup) with proper IntelliJ Platform threading (read/write actions) and translates failures into `VcsException`. All Git commands must run in `runReadAction` (for read-only) or `runWriteAction` (for mutating operations) to comply with EDT threading requirements. Fetched via `project.service<GitRebaseService>()`.
 - **`config/`** — `GitRebaseSettings` (`@Service` + `PersistentStateComponent`) persists user preferences (default target branch, autostash, notify-on-success) and non-secret GitLab config (URL, project ID) to `gitRebasePlugin.xml`. The comment in the source notes that tokens are meant to go through the system credential store instead of this plain state, though no such credential-store integration exists yet.
 
-Control flow for the main action: `actionPerformed` → show `RebaseConfigDialog` → if there are uncommitted changes, show `CommitFilesDialog` → `executeRebaseAndPushInBackground` runs fetch → rebase → (add + commit selected files) → force-push → optionally create MR, updating a `ProgressIndicator` at each step and surfacing errors via `Messages.showErrorDialog`.
+Control flow for the main action: `actionPerformed` → show `UnifiedRebaseDialog` → user confirms → execute all steps synchronously on EDT (add + commit → fetch → rebase → force-push → optionally create MR) with progress text updating in the dialog's bottom panel → auto-close after 2 seconds.
+
+**Threading model:** All Git operations are wrapped in `ApplicationManager.getApplication().runReadAction(Computable {...})` for reads or `runWriteAction(Computable {...})` for writes to ensure they execute on the Event Dispatch Thread with proper locking, preventing "Access is allowed from Event Dispatch Thread (EDT) only" errors.
 
 `plugin.xml` (`src/main/resources/META-INF/`) is the extension/action registration point — the action is added to the `Vcs.CommitExecutor.Actions` group, meaning it surfaces in the Git commit dialog rather than as a toolbar/menu action elsewhere.
