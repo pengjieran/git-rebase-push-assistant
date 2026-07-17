@@ -150,7 +150,7 @@ class UnifiedRebaseDialog(
             filesList.foreground = UIUtil.getLabelForeground()
             filesList.font = UIUtil.getTreeFont()
             filesList.text = changedFiles.take(10).joinToString("\n") { "  • $it" } +
-                            if (changedFiles.size > 10) "\n  ..." else ""
+                    if (changedFiles.size > 10) "\n  ..." else ""
             filesList.border = JBUI.Borders.empty(4, 8)
 
             val filesScroll = JBScrollPane(filesList)
@@ -294,11 +294,13 @@ class UnifiedRebaseDialog(
                 if (input.isEmpty()) return
                 "\$(JIRA:$input)"
             }
+
             "#webhook" -> "#webhook"
             "自定义内容" -> {
                 if (input.isEmpty()) return
                 input
             }
+
             else -> return
         }
 
@@ -363,9 +365,11 @@ class UnifiedRebaseDialog(
             is MergeRequestResult.Success -> {
                 notifySuccess("变基推送完成，Merge请求已创建", result.url)
             }
+
             is MergeRequestResult.NotConfigured -> {
                 notifySuccess("变基推送完成，但Merge请求未配置: ${result.reason}")
             }
+
             is MergeRequestResult.Error -> {
                 notifySuccess("变基推送完成，但Merge请求创建失败: ${result.message}")
             }
