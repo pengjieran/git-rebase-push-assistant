@@ -13,18 +13,17 @@ import com.intellij.openapi.progress.Task
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.DialogWrapper
 import com.intellij.openapi.ui.Messages
+import com.intellij.icons.AllIcons
 import com.intellij.ui.TextFieldWithAutoCompletion
 import com.intellij.ui.TextFieldWithAutoCompletionListProvider
-import com.intellij.ui.components.JBCheckBox
-import com.intellij.ui.components.JBLabel
-import com.intellij.ui.components.JBScrollPane
-import com.intellij.ui.components.JBTextArea
+import com.intellij.ui.components.*
+import com.intellij.ui.TitledSeparator
 import com.intellij.util.ui.JBUI
+import com.intellij.util.ui.UIUtil
 import git4idea.repo.GitRepository
 import java.awt.BorderLayout
 import java.awt.Dimension
-import java.awt.GridBagConstraints
-import java.awt.GridBagLayout
+import java.awt.FlowLayout
 import javax.swing.*
 
 class UnifiedRebaseDialog(
@@ -39,8 +38,6 @@ class UnifiedRebaseDialog(
     private val branchField: TextFieldWithAutoCompletion<String>
     private val messageArea = JBTextArea(4, 50)
     private val createMRCheckBox: JBCheckBox
-    private val filesListLabel: JBLabel
-    private val formPanel: JPanel
 
     private val appendTypeComboBox: JComboBox<String>
     private val appendInputField: JTextField
@@ -83,7 +80,6 @@ class UnifiedRebaseDialog(
         branchField.setPreferredWidth(400)
 
         createMRCheckBox = JBCheckBox("推送后自动提交merge请求", false)
-        filesListLabel = JBLabel()
 
         appendTypeComboBox = JComboBox(arrayOf("Co-Authored-By", "JIRA", "#webhook", "自定义内容"))
         appendInputField = JTextField(20)
@@ -99,121 +95,131 @@ class UnifiedRebaseDialog(
 
         updateAppendInputState()
 
-        formPanel = JPanel(GridBagLayout())
-
         init()
     }
 
     override fun createCenterPanel(): JComponent {
-        val mainPanel = JPanel(BorderLayout(0, 10))
-        mainPanel.preferredSize = Dimension(600, 400)
-        mainPanel.border = JBUI.Borders.empty(10)
+        val mainPanel = JPanel(BorderLayout(0, 0))
+        mainPanel.preferredSize = Dimension(650, 480)
+        mainPanel.border = JBUI.Borders.empty(12)
 
-        val gbc = GridBagConstraints()
-        gbc.fill = GridBagConstraints.HORIZONTAL
-        gbc.anchor = GridBagConstraints.WEST
-        gbc.insets = JBUI.insets(5, 5)
+        val contentPanel = JPanel()
+        contentPanel.layout = BoxLayout(contentPanel, BoxLayout.Y_AXIS)
 
-        // 目标分支
-        gbc.gridx = 0
-        gbc.gridy = 0
-        gbc.weightx = 0.0
-        val branchLabel = JBLabel("目标分支:")
-        branchLabel.font = branchLabel.font.deriveFont(java.awt.Font.BOLD)
-        formPanel.add(branchLabel, gbc)
+        // ===== 目标分支部分 =====
+        contentPanel.add(TitledSeparator("目标分支"))
+        contentPanel.add(Box.createVerticalStrut(8))
 
-        gbc.gridx = 1
-        gbc.weightx = 1.0
-        formPanel.add(branchField, gbc)
+        val branchPanel = JPanel(BorderLayout(8, 0))
+        branchPanel.border = JBUI.Borders.empty(0, 12, 0, 0)
 
-        // 变动文件
-        gbc.gridx = 0
-        gbc.gridy = 1
-        gbc.weightx = 0.0
-        val filesLabel = JBLabel("变动文件:")
-        filesLabel.font = filesLabel.font.deriveFont(java.awt.Font.BOLD)
-        formPanel.add(filesLabel, gbc)
+        val branchIcon = JBLabel(AllIcons.Vcs.Branch)
+        branchPanel.add(branchIcon, BorderLayout.WEST)
 
-        gbc.gridx = 1
-        gbc.weightx = 1.0
-        val filesSection = JPanel(BorderLayout(0, 6))
+        branchField.border = JBUI.Borders.empty(4)
+        branchPanel.add(branchField, BorderLayout.CENTER)
 
-        val filesInfo = if (changedFiles.isEmpty()) {
-            "无变动文件"
+        contentPanel.add(branchPanel)
+        contentPanel.add(Box.createVerticalStrut(16))
+
+        // ===== 变动文件部分 =====
+        contentPanel.add(TitledSeparator("变动文件"))
+        contentPanel.add(Box.createVerticalStrut(8))
+
+        val filesPanel = JPanel(BorderLayout(0, 8))
+        filesPanel.border = JBUI.Borders.empty(0, 12, 0, 0)
+
+        val filesCountLabel = JBLabel()
+        if (changedFiles.isEmpty()) {
+            filesCountLabel.text = "无变动文件"
+            filesCountLabel.foreground = UIUtil.getInactiveTextColor()
+            filesCountLabel.icon = AllIcons.General.InspectionsOK
         } else {
-            "${changedFiles.size} 个文件 (全部默认提交)"
+            filesCountLabel.text = "${changedFiles.size} 个文件将被提交"
+            filesCountLabel.icon = AllIcons.Vcs.Changelist
         }
-        filesListLabel.text = "<html><body>${filesInfo}<br><small style='color: gray;'>${
-            changedFiles.take(5).joinToString("<br>")
-        }${if (changedFiles.size > 5) "<br>..." else ""}</small></body></html>"
-        filesSection.add(filesListLabel, BorderLayout.NORTH)
+        filesPanel.add(filesCountLabel, BorderLayout.NORTH)
 
         if (changedFiles.isNotEmpty()) {
-            val warningBanner = JBLabel(
-                "<html><body style='width: 350px; padding: 2px 0;'>" +
-                        "变基时不允许有部分未提交的文件,所有变更文件将被自动提交" +
-                        "</body></html>"
-            )
-            warningBanner.foreground = java.awt.Color(0xB3, 0x66, 0x00)
-            warningBanner.isOpaque = true
-            warningBanner.background = java.awt.Color(0xFF, 0xF4, 0xE0)
-            warningBanner.border = JBUI.Borders.empty(4, 6)
-            filesSection.add(warningBanner, BorderLayout.SOUTH)
+            val filesListPanel = JPanel(BorderLayout())
+            filesListPanel.border = JBUI.Borders.empty(4, 0)
+
+            val filesList = JBTextArea()
+            filesList.isEditable = false
+            filesList.background = UIUtil.getPanelBackground()
+            filesList.foreground = UIUtil.getLabelForeground()
+            filesList.font = UIUtil.getTreeFont()
+            filesList.text = changedFiles.take(10).joinToString("\n") { "  • $it" } +
+                            if (changedFiles.size > 10) "\n  ..." else ""
+            filesList.border = JBUI.Borders.empty(4, 8)
+
+            val filesScroll = JBScrollPane(filesList)
+            filesScroll.preferredSize = Dimension(0, 80)
+            filesScroll.border = JBUI.Borders.customLine(UIUtil.getBoundsColor(), 1)
+            filesListPanel.add(filesScroll, BorderLayout.CENTER)
+
+            val warningPanel = JPanel(FlowLayout(FlowLayout.LEFT, 4, 2))
+            warningPanel.background = JBUI.CurrentTheme.Banner.WARNING_BACKGROUND
+            warningPanel.border = JBUI.Borders.empty(6, 8)
+
+            val warningIcon = JBLabel(AllIcons.General.Warning)
+            val warningText = JBLabel("<html>所有变更文件将被自动提交（变基要求工作目录干净）</html>")
+            warningText.foreground = JBUI.CurrentTheme.Banner.FOREGROUND
+
+            warningPanel.add(warningIcon)
+            warningPanel.add(warningText)
+
+            filesListPanel.add(warningPanel, BorderLayout.SOUTH)
+            filesPanel.add(filesListPanel, BorderLayout.CENTER)
         }
 
-        formPanel.add(filesSection, gbc)
+        contentPanel.add(filesPanel)
+        contentPanel.add(Box.createVerticalStrut(16))
 
-        // 提交信息
-        gbc.gridx = 0
-        gbc.gridy = 2
-        gbc.weightx = 0.0
-        gbc.anchor = GridBagConstraints.NORTHWEST
-        val messageLabel = JBLabel("提交信息:")
-        messageLabel.font = messageLabel.font.deriveFont(java.awt.Font.BOLD)
-        formPanel.add(messageLabel, gbc)
+        // ===== 提交信息部分 =====
+        contentPanel.add(TitledSeparator("提交信息"))
+        contentPanel.add(Box.createVerticalStrut(8))
 
-        gbc.gridx = 1
-        gbc.weightx = 1.0
-        gbc.weighty = 0.3
-        gbc.fill = GridBagConstraints.BOTH
+        val messagePanel = JPanel(BorderLayout())
+        messagePanel.border = JBUI.Borders.empty(0, 12, 0, 0)
+
         messageArea.lineWrap = true
         messageArea.wrapStyleWord = true
-        messageArea.border = JBUI.Borders.empty(4)
+        messageArea.border = JBUI.Borders.empty(6, 8)
+        messageArea.emptyText.text = "请输入提交信息…"
         val messageScroll = JBScrollPane(messageArea)
-        messageScroll.preferredSize = Dimension(400, 100)
-        formPanel.add(messageScroll, gbc)
+        messageScroll.preferredSize = Dimension(0, 90)
+        messageScroll.border = JBUI.Borders.customLine(UIUtil.getBoundsColor(), 1)
+        messagePanel.add(messageScroll, BorderLayout.CENTER)
 
-        // 自动追加内容
-        gbc.gridx = 0
-        gbc.gridy = 3
-        gbc.weightx = 0.0
-        gbc.fill = GridBagConstraints.HORIZONTAL
-        gbc.anchor = GridBagConstraints.WEST
-        val appendLabel = JBLabel("自动追加:")
-        appendLabel.font = appendLabel.font.deriveFont(java.awt.Font.BOLD)
-        formPanel.add(appendLabel, gbc)
+        contentPanel.add(messagePanel)
+        contentPanel.add(Box.createVerticalStrut(6))
 
-        gbc.gridx = 1
-        gbc.weightx = 1.0
-        val appendPanel = JPanel()
-        appendPanel.layout = BoxLayout(appendPanel, BoxLayout.X_AXIS)
+        // 自动追加内容（紧跟在提交信息下方，作为辅助工具行）
+        val appendPanel = JPanel(FlowLayout(FlowLayout.LEFT, 6, 2))
+        appendPanel.border = JBUI.Borders.empty(0, 12, 0, 0)
+
+        val appendLabel = JBLabel("追加:", AllIcons.General.Add, JBLabel.LEFT)
+        appendLabel.foreground = UIUtil.getInactiveTextColor()
+        appendPanel.add(appendLabel)
         appendPanel.add(appendTypeComboBox)
-        appendPanel.add(Box.createHorizontalStrut(6))
         appendPanel.add(appendInputField)
-        appendPanel.add(Box.createHorizontalStrut(6))
         appendPanel.add(addAppendButton)
-        formPanel.add(appendPanel, gbc)
 
-        // MR选项
-        gbc.gridx = 1
-        gbc.gridy = 4
-        gbc.weightx = 1.0
-        gbc.weighty = 0.0
-        gbc.fill = GridBagConstraints.HORIZONTAL
-        gbc.anchor = GridBagConstraints.WEST
-        formPanel.add(createMRCheckBox, gbc)
+        contentPanel.add(appendPanel)
+        contentPanel.add(Box.createVerticalStrut(16))
 
-        mainPanel.add(formPanel, BorderLayout.CENTER)
+        // ===== 其他选项 =====
+        contentPanel.add(TitledSeparator("其他选项"))
+        contentPanel.add(Box.createVerticalStrut(4))
+
+        val mrPanel = JPanel(BorderLayout())
+        mrPanel.border = JBUI.Borders.empty(0, 12, 0, 0)
+        mrPanel.add(createMRCheckBox, BorderLayout.WEST)
+
+        contentPanel.add(mrPanel)
+
+        mainPanel.add(contentPanel, BorderLayout.CENTER)
 
         return mainPanel
     }
