@@ -10,6 +10,7 @@ import com.intellij.openapi.ui.Messages
 import git4idea.repo.GitRepository
 import java.io.OutputStreamWriter
 import java.net.HttpURLConnection
+import java.net.URI
 import java.net.URL
 import java.net.URLEncoder
 
@@ -28,7 +29,8 @@ class MergeRequestService(private val project: Project) {
     fun createMergeRequest(
         repository: GitRepository,
         sourceBranch: String,
-        targetBranch: String
+        targetBranch: String,
+        description: String
     ): MergeRequestResult {
         val remoteUrl = com.intellij.openapi.application.ApplicationManager.getApplication()
             .runReadAction(com.intellij.openapi.util.Computable {
@@ -38,7 +40,7 @@ class MergeRequestService(private val project: Project) {
         val platform = detectPlatform(remoteUrl)
 
         return when (platform) {
-            Platform.GITLAB -> createGitLabMR(remoteUrl, sourceBranch, targetBranch)
+            Platform.GITLAB -> createGitLabMR(remoteUrl, sourceBranch, targetBranch, description)
             Platform.GITHUB -> createGitHubPR(remoteUrl, sourceBranch, targetBranch)
         }
     }
@@ -53,7 +55,8 @@ class MergeRequestService(private val project: Project) {
     private fun createGitLabMR(
         remoteUrl: String,
         sourceBranch: String,
-        targetBranch: String
+        targetBranch: String,
+        description: String
     ): MergeRequestResult {
         val gitlabInfo = parseGitLabUrl(remoteUrl)
             ?: return MergeRequestResult.Error("无法解析GitLab URL: $remoteUrl")
@@ -80,7 +83,6 @@ class MergeRequestService(private val project: Project) {
             val apiUrl = "${gitlabInfo.baseUrl}/api/v4/projects/$projectId/merge_requests"
 
             val title = "合并 $sourceBranch 到 $targetBranch"
-            val description = "由IntelliJ IDEA Git插件自动创建的合并请求"
 
             val response = callGitLabAPI(apiUrl, token, sourceBranch, targetBranch, title, description)
 
@@ -113,7 +115,7 @@ class MergeRequestService(private val project: Project) {
         description: String
     ): GitLabAPIResponse {
         return try {
-            val url = URL(apiUrl)
+            val url = URI(apiUrl).toURL()
             val connection = url.openConnection() as HttpURLConnection
 
             connection.requestMethod = "POST"
@@ -211,7 +213,7 @@ class MergeRequestService(private val project: Project) {
                 project,
                 "请输入GitLab Personal Access Token\n" +
                 "Token需要api权限，可在以下链接创建:\n" +
-                "$baseUrl/-/user_settings/personal_access_tokens\n\n" +
+                "$baseUrl/-/profile/personal_access_tokens\n\n" +
                 "Token将安全存储在系统密钥链中",
                 "GitLab Token配置",
                 Messages.getQuestionIcon()

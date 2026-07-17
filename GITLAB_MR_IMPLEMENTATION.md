@@ -83,7 +83,7 @@ src/main/kotlin/com/examplecn/
 ├── service/
 │   ├── GitRebaseService.kt           # Git操作服务
 │   └── MergeRequestService.kt        # MR创建服务（含GitLab API）
-└── MyToolWindowFactory.kt            # 示例工具窗口
+└── GitPluginWindowFactory.kt         # 示例工具窗口
 ```
 
 ## 代码亮点

@@ -21,7 +21,7 @@ class GitRebaseSettings : PersistentStateComponent<GitRebaseSettings.State> {
 
     data class State(
         // 用户偏好
-        var defaultTargetBranch: String = "master",
+        var defaultTargetBranch: String = "develop",
         var useAutostash: Boolean = false,
         var notifyOnSuccess: Boolean = true
     )

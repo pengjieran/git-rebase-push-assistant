@@ -8,14 +8,11 @@
     <name>Git-plugin</name>
 
     <!-- A displayed Vendor name or Organization ID displayed on the Plugins Page. -->
-    <vendor url="https://www.yourcompany.com">YourCompany</vendor>
+    <vendor url="https://www.yonyoucloud.com">yonyou</vendor>
 
     <!-- Description of the plugin displayed on the Plugin Page and IDE Plugin Manager.
          Guidelines: https://plugins.jetbrains.com/docs/marketplace/best-practices-for-listing.html#plugin-description -->
-    <description><![CDATA[
-        Enter short description for your plugin here.<br>
-        <em>most HTML tags may be used</em>
-        ]]></description>
+    <description><![CDATA[git扩展插件，支持自动变基到目标分支并自动提交commit,自动发起merge到目标分支的请求，自动添加webhook,自动添加jira号]]></description>
 
     <!-- Product and plugin compatibility requirements.
          Read more: https://plugins.jetbrains.com/docs/intellij/plugin-compatibility.html -->
@@ -27,7 +24,7 @@
     <!-- Extensions defined by the plugin.
          Read more: https://plugins.jetbrains.com/docs/intellij/plugin-extension-points.html -->
     <extensions defaultExtensionNs="com.intellij">
-        <toolWindow id="MyToolWindow" factoryClass="com.examplecn.MyToolWindowFactory"
+        <toolWindow id="MyToolWindow" factoryClass="com.examplecn.GitPluginWindowFactory"
                     icon="AllIcons.Toolwindows.ToolWindowPalette"/>
         <notificationGroup id="Git Rebase Plugin" displayType="BALLOON"/>
     </extensions>

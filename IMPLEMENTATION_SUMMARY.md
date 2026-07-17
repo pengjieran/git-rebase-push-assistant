@@ -92,7 +92,7 @@ src/main/kotlin/com/examplecn/
 ├── action/GitRebaseAndPushAction.kt       (185 lines)
 ├── config/GitRebaseSettings.kt            (48 lines)
 ├── service/GitRebaseService.kt            (92 lines)
-├── MyToolWindowFactory.kt                 (37 lines)
+├── GitPluginWindowFactory.kt              (37 lines)
 └── MyMessageBundle.kt                     (原有文件)
 
 src/main/resources/META-INF/plugin.xml     (43 lines)

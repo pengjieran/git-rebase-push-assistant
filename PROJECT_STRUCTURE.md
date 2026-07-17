@@ -13,7 +13,7 @@ git-plugin/
 │   │   │   │   └── GitRebaseSettings.kt           # 配置管理（未来扩展）
 │   │   │   ├── service/
 │   │   │   │   └── GitRebaseService.kt            # Git操作核心服务
-│   │   │   ├── MyToolWindowFactory.kt             # 示例ToolWindow
+│   │   │   ├── GitPluginWindowFactory.kt          # 示例ToolWindow
 │   │   │   └── MyMessageBundle.kt                 # 国际化消息
 │   │   └── resources/
 │   │       ├── META-INF/
