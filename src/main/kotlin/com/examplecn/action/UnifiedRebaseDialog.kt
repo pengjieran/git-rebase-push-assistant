@@ -42,6 +42,11 @@ class UnifiedRebaseDialog(
     private val filesListLabel: JBLabel
     private val formPanel: JPanel
 
+    private val appendWebhookCheckBox: JBCheckBox
+    private val appendJiraCheckBox: JBCheckBox
+    private val jiraNumberField: JTextField
+    private val addJiraButton: JButton
+
     var selectedBranch: String = ""
         private set
     var commitMessage: String = ""
@@ -80,6 +85,20 @@ class UnifiedRebaseDialog(
 
         createMRCheckBox = JBCheckBox("推送后自动提交merge请求", false)
         filesListLabel = JBLabel()
+
+        appendWebhookCheckBox = JBCheckBox("自动追加 #webhook", false)
+        appendJiraCheckBox = JBCheckBox("追加JIRA编号", false)
+        jiraNumberField = JTextField(15)
+        addJiraButton = JButton("添加")
+        addJiraButton.addActionListener { appendJiraNumber() }
+
+        jiraNumberField.isEnabled = false
+        addJiraButton.isEnabled = false
+        appendJiraCheckBox.addItemListener {
+            val enabled = appendJiraCheckBox.isSelected
+            jiraNumberField.isEnabled = enabled
+            addJiraButton.isEnabled = enabled
+        }
 
         formPanel = JPanel(GridBagLayout())
 
@@ -165,9 +184,30 @@ class UnifiedRebaseDialog(
         messageScroll.preferredSize = Dimension(400, 100)
         formPanel.add(messageScroll, gbc)
 
-        // MR选项
+        // 自动追加 #webhook
         gbc.gridx = 1
         gbc.gridy = 3
+        gbc.weightx = 1.0
+        gbc.weighty = 0.0
+        gbc.fill = GridBagConstraints.HORIZONTAL
+        gbc.anchor = GridBagConstraints.WEST
+        formPanel.add(appendWebhookCheckBox, gbc)
+
+        // JIRA编号追加
+        gbc.gridx = 1
+        gbc.gridy = 4
+        val jiraPanel = JPanel()
+        jiraPanel.layout = BoxLayout(jiraPanel, BoxLayout.X_AXIS)
+        jiraPanel.add(appendJiraCheckBox)
+        jiraPanel.add(Box.createHorizontalStrut(6))
+        jiraPanel.add(jiraNumberField)
+        jiraPanel.add(Box.createHorizontalStrut(6))
+        jiraPanel.add(addJiraButton)
+        formPanel.add(jiraPanel, gbc)
+
+        // MR选项
+        gbc.gridx = 1
+        gbc.gridy = 5
         gbc.weightx = 1.0
         gbc.weighty = 0.0
         gbc.fill = GridBagConstraints.HORIZONTAL
@@ -213,6 +253,11 @@ class UnifiedRebaseDialog(
         commitMessage = messageArea.text.trim()
         shouldCreateMR = createMRCheckBox.isSelected
 
+        // 处理 #webhook 追加
+        if (appendWebhookCheckBox.isSelected && commitMessage.isNotEmpty()) {
+            commitMessage += " #webhook"
+        }
+
         // 立即关闭对话框，在后台执行
         super.doOKAction()
 
@@ -221,6 +266,20 @@ class UnifiedRebaseDialog(
 
     override fun doCancelAction() {
         super.doCancelAction()
+    }
+
+    private fun appendJiraNumber() {
+        val jiraNumber = jiraNumberField.text.trim()
+        if (jiraNumber.isEmpty()) {
+            return
+        }
+
+        val tag = "\$(JIRA:$jiraNumber)"
+        val current = messageArea.text
+        val separator = if (current.isNotEmpty() && !current.endsWith(";") && !current.endsWith("\n")) ";" else ""
+        messageArea.text = current + separator + tag
+
+        jiraNumberField.text = ""
     }
 
     private fun executeRebaseWorkflow(currentBranch: String) {
