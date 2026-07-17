@@ -18,9 +18,12 @@ class GitRebaseService(private val project: Project) {
      * 拉取远程分支最新内容
      */
     fun fetchRemoteBranch(repository: GitRepository, branch: String) {
-        val handler = GitLineHandler(project, repository.root, GitCommand.FETCH)
-        handler.addParameters("origin", branch)
-        val result = Git.getInstance().runCommand(handler)
+        val result = com.intellij.openapi.application.ApplicationManager.getApplication()
+            .runReadAction(com.intellij.openapi.util.Computable {
+                val handler = GitLineHandler(project, repository.root, GitCommand.FETCH)
+                handler.addParameters("origin", branch)
+                Git.getInstance().runCommand(handler)
+            })
 
         if (!result.success()) {
             throw VcsException("Failed to fetch branch $branch: ${result.errorOutputAsJoinedString}")
@@ -31,9 +34,12 @@ class GitRebaseService(private val project: Project) {
      * 将当前分支变基到目标分支
      */
     fun rebaseOnto(repository: GitRepository, targetBranch: String) {
-        val handler = GitLineHandler(project, repository.root, GitCommand.REBASE)
-        handler.addParameters("origin/$targetBranch")
-        val result = Git.getInstance().runCommand(handler)
+        val result = com.intellij.openapi.application.ApplicationManager.getApplication()
+            .runReadAction(com.intellij.openapi.util.Computable {
+                val handler = GitLineHandler(project, repository.root, GitCommand.REBASE)
+                handler.addParameters("origin/$targetBranch")
+                Git.getInstance().runCommand(handler)
+            })
 
         if (!result.success()) {
             throw VcsException("Rebase failed: ${result.errorOutputAsJoinedString}")
@@ -44,9 +50,12 @@ class GitRebaseService(private val project: Project) {
      * 强制推送当前分支（使用--force-with-lease保护）
      */
     fun forcePushBranch(repository: GitRepository, branch: String) {
-        val handler = GitLineHandler(project, repository.root, GitCommand.PUSH)
-        handler.addParameters("--force-with-lease", "origin", branch)
-        val result = Git.getInstance().runCommand(handler)
+        val result = com.intellij.openapi.application.ApplicationManager.getApplication()
+            .runReadAction(com.intellij.openapi.util.Computable {
+                val handler = GitLineHandler(project, repository.root, GitCommand.PUSH)
+                handler.addParameters("--force-with-lease", "origin", branch)
+                Git.getInstance().runCommand(handler)
+            })
 
         if (!result.success()) {
             throw VcsException("Push failed: ${result.errorOutputAsJoinedString}")
@@ -78,9 +87,12 @@ class GitRebaseService(private val project: Project) {
      */
     fun getChangedFiles(repository: GitRepository): List<String> {
         return try {
-            val handler = GitLineHandler(project, repository.root, GitCommand.STATUS)
-            handler.addParameters("--porcelain")
-            val result = Git.getInstance().runCommand(handler)
+            val result = com.intellij.openapi.application.ApplicationManager.getApplication()
+                .runReadAction(com.intellij.openapi.util.Computable {
+                    val handler = GitLineHandler(project, repository.root, GitCommand.STATUS)
+                    handler.addParameters("--porcelain")
+                    Git.getInstance().runCommand(handler)
+                })
 
             if (result.success()) {
                 result.output
@@ -100,9 +112,12 @@ class GitRebaseService(private val project: Project) {
      * 添加文件到暂存区
      */
     fun addFiles(repository: GitRepository, files: List<String>) {
-        val handler = GitLineHandler(project, repository.root, GitCommand.ADD)
-        handler.addParameters(files)
-        val result = Git.getInstance().runCommand(handler)
+        val result = com.intellij.openapi.application.ApplicationManager.getApplication()
+            .runReadAction(com.intellij.openapi.util.Computable {
+                val handler = GitLineHandler(project, repository.root, GitCommand.ADD)
+                handler.addParameters(files)
+                Git.getInstance().runCommand(handler)
+            })
 
         if (!result.success()) {
             throw VcsException("Failed to add files: ${result.errorOutputAsJoinedString}")
@@ -113,9 +128,12 @@ class GitRebaseService(private val project: Project) {
      * 提交变更
      */
     fun commitChanges(repository: GitRepository, message: String) {
-        val handler = GitLineHandler(project, repository.root, GitCommand.COMMIT)
-        handler.addParameters("-m", message)
-        val result = Git.getInstance().runCommand(handler)
+        val result = com.intellij.openapi.application.ApplicationManager.getApplication()
+            .runReadAction(com.intellij.openapi.util.Computable {
+                val handler = GitLineHandler(project, repository.root, GitCommand.COMMIT)
+                handler.addParameters("-m", message)
+                Git.getInstance().runCommand(handler)
+            })
 
         if (!result.success()) {
             throw VcsException("Commit failed: ${result.errorOutputAsJoinedString}")

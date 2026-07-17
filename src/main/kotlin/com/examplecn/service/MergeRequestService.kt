@@ -30,8 +30,10 @@ class MergeRequestService(private val project: Project) {
         sourceBranch: String,
         targetBranch: String
     ): MergeRequestResult {
-        val remoteUrl = repository.remotes.firstOrNull { it.name == "origin" }?.firstUrl
-            ?: return MergeRequestResult.NotConfigured("未找到origin远程仓库")
+        val remoteUrl = com.intellij.openapi.application.ApplicationManager.getApplication()
+            .runReadAction(com.intellij.openapi.util.Computable {
+                repository.remotes.firstOrNull { it.name == "origin" }?.firstUrl
+            }) ?: return MergeRequestResult.NotConfigured("未找到origin远程仓库")
 
         val platform = detectPlatform(remoteUrl)
 
@@ -203,18 +205,21 @@ class MergeRequestService(private val project: Project) {
     }
 
     private fun promptForGitLabToken(baseUrl: String): String? {
-        val token = Messages.showInputDialog(
-            project,
-            "请输入GitLab Personal Access Token\n" +
-            "Token需要api权限，可在以下链接创建:\n" +
-            "$baseUrl/-/user_settings/personal_access_tokens\n\n" +
-            "Token将安全存储在系统密钥链中",
-            "GitLab Token配置",
-            Messages.getQuestionIcon()
-        )
+        var token: String? = null
+        com.intellij.openapi.application.ApplicationManager.getApplication().invokeAndWait {
+            token = Messages.showInputDialog(
+                project,
+                "请输入GitLab Personal Access Token\n" +
+                "Token需要api权限，可在以下链接创建:\n" +
+                "$baseUrl/-/user_settings/personal_access_tokens\n\n" +
+                "Token将安全存储在系统密钥链中",
+                "GitLab Token配置",
+                Messages.getQuestionIcon()
+            )
+        }
 
         if (!token.isNullOrEmpty()) {
-            saveGitLabToken(baseUrl, token)
+            saveGitLabToken(baseUrl, token!!)
         }
 
         return token
