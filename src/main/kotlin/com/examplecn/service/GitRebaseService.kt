@@ -58,13 +58,15 @@ class GitRebaseService(private val project: Project) {
      */
     fun getRemoteBranches(repository: GitRepository): List<String> {
         return try {
-            repository.branches.remoteBranches
-                .mapNotNull { branch ->
-                    val branchName = branch.name.removePrefix("origin/")
-                    branchName.takeIf { it.isNotEmpty() }
-                }
-                .distinct()
-                .sorted()
+            com.intellij.openapi.application.ApplicationManager.getApplication().runReadAction<List<String>> {
+                repository.branches.remoteBranches
+                    .mapNotNull { branch ->
+                        val branchName = branch.name.removePrefix("origin/")
+                        branchName.takeIf { it.isNotEmpty() }
+                    }
+                    .distinct()
+                    .sorted()
+            }
         } catch (e: Exception) {
             emptyList()
         }
