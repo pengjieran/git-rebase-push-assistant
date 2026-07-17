@@ -43,7 +43,7 @@ cd git-plugin
 ### 基本用法
 
 1. 打开Git提交窗口（`Cmd+K` / `Ctrl+K`）
-2. 点击 **"Rebase and Push"** 按钮
+2. 点击 **"变基并提交"** 按钮
 3. 选择目标分支
 4. 可选勾选 "Create Merge Request after push"
 5. 点击 OK
