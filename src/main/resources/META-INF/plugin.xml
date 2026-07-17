@@ -29,6 +29,7 @@
     <extensions defaultExtensionNs="com.intellij">
         <toolWindow id="MyToolWindow" factoryClass="com.examplecn.MyToolWindowFactory"
                     icon="AllIcons.Toolwindows.ToolWindowPalette"/>
+        <notificationGroup id="Git Rebase Plugin" displayType="BALLOON"/>
     </extensions>
 
     <!-- Actions -->

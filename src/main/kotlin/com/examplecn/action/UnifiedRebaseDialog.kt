@@ -3,7 +3,12 @@ package com.examplecn.action
 import com.examplecn.service.GitRebaseService
 import com.examplecn.service.MergeRequestResult
 import com.examplecn.service.MergeRequestService
+import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.application.ModalityState
 import com.intellij.openapi.components.service
+import com.intellij.openapi.progress.ProgressIndicator
+import com.intellij.openapi.progress.ProgressManager
+import com.intellij.openapi.progress.Task
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.DialogWrapper
 import com.intellij.openapi.ui.Messages
@@ -33,8 +38,7 @@ class UnifiedRebaseDialog(
     private val messageArea = JBTextArea(4, 50)
     private val createMRCheckBox: JBCheckBox
     private val filesListLabel: JBLabel
-    private val progressPanel: JPanel
-    private val progressTextArea: JBTextArea
+    private val formPanel: JPanel
 
     var selectedBranch: String = ""
         private set
@@ -49,7 +53,7 @@ class UnifiedRebaseDialog(
         branches = service.getRemoteBranches(repository)
         changedFiles = service.getChangedFiles(repository)
 
-        val currentBranch = com.intellij.openapi.application.ApplicationManager.getApplication()
+        val currentBranch = ApplicationManager.getApplication()
             .runReadAction(com.intellij.openapi.util.Computable {
                 repository.currentBranch?.name
             })
@@ -72,22 +76,16 @@ class UnifiedRebaseDialog(
         createMRCheckBox = JBCheckBox("推送后自动提交merge请求", false)
         filesListLabel = JBLabel()
 
-        progressPanel = JPanel(BorderLayout())
-        progressPanel.isVisible = false
-        progressTextArea = JBTextArea(10, 50)
-        progressTextArea.isEditable = false
-        progressTextArea.lineWrap = true
-        progressTextArea.wrapStyleWord = true
+        formPanel = JPanel(GridBagLayout())
 
         init()
     }
 
     override fun createCenterPanel(): JComponent {
         val mainPanel = JPanel(BorderLayout(0, 10))
-        mainPanel.preferredSize = Dimension(600, 500)
+        mainPanel.preferredSize = Dimension(600, 400)
         mainPanel.border = JBUI.Borders.empty(10)
 
-        val formPanel = JPanel(GridBagLayout())
         val gbc = GridBagConstraints()
         gbc.fill = GridBagConstraints.HORIZONTAL
         gbc.anchor = GridBagConstraints.WEST
@@ -154,21 +152,7 @@ class UnifiedRebaseDialog(
         gbc.anchor = GridBagConstraints.WEST
         formPanel.add(createMRCheckBox, gbc)
 
-        mainPanel.add(formPanel, BorderLayout.NORTH)
-
-        // 进度面板
-        val progressLabel = JBLabel("执行进度:")
-        progressLabel.font = progressLabel.font.deriveFont(java.awt.Font.BOLD)
-        progressLabel.border = JBUI.Borders.emptyBottom(5)
-        progressPanel.add(progressLabel, BorderLayout.NORTH)
-        progressTextArea.border = JBUI.Borders.empty(4)
-        progressTextArea.background = java.awt.Color(245, 245, 245)
-        val progressScroll = JBScrollPane(progressTextArea)
-        progressScroll.preferredSize = Dimension(580, 150)
-        progressPanel.add(progressScroll, BorderLayout.CENTER)
-        progressPanel.border = JBUI.Borders.emptyTop(10)
-
-        mainPanel.add(progressPanel, BorderLayout.CENTER)
+        mainPanel.add(formPanel, BorderLayout.CENTER)
 
         return mainPanel
     }
@@ -189,7 +173,7 @@ class UnifiedRebaseDialog(
             return
         }
 
-        val currentBranch = com.intellij.openapi.application.ApplicationManager.getApplication()
+        val currentBranch = ApplicationManager.getApplication()
             .runReadAction(com.intellij.openapi.util.Computable {
                 repository.currentBranch?.name
             })
@@ -207,64 +191,55 @@ class UnifiedRebaseDialog(
         commitMessage = messageArea.text.trim()
         shouldCreateMR = createMRCheckBox.isSelected
 
-        // 禁用按钮，防止重复提交
-        okAction.isEnabled = false
-        cancelAction.isEnabled = false
-
-        // 显示进度面板并开始执行
-        progressPanel.isVisible = true
-        window.pack()
+        // 立即关闭对话框，在后台执行
+        super.doOKAction()
 
         executeRebaseWorkflow(currentBranch ?: "")
     }
 
-    private fun executeRebaseWorkflow(currentBranch: String) {
-        try {
-            if (changedFiles.isNotEmpty()) {
-                appendProgress("检查未提交的变更...")
-                appendProgress("发现 ${changedFiles.size} 个变动文件，准备提交\n")
-
-                appendProgress("正在添加文件到暂存区...")
-                service.addFiles(repository, changedFiles)
-                appendProgress("✓ 文件已添加到暂存区\n")
-
-                appendProgress("正在提交变更...")
-                service.commitChanges(repository, commitMessage)
-                appendProgress("✓ 变更已提交\n")
-            }
-
-            appendProgress("正在拉取远程分支 $selectedBranch...")
-            service.fetchRemoteBranch(repository, selectedBranch)
-            appendProgress("✓ 远程分支已拉取\n")
-
-            appendProgress("正在将 $currentBranch 变基到 $selectedBranch...")
-            service.rebaseOnto(repository, selectedBranch)
-            appendProgress("✓ 变基成功\n")
-
-            appendProgress("正在推送到远程仓库...")
-            service.forcePushBranch(repository, currentBranch)
-            appendProgress("✓ 推送成功\n")
-
-            if (shouldCreateMR) {
-                appendProgress("\n正在创建Merge请求...")
-                createMergeRequest(currentBranch)
-            } else {
-                appendProgress("\n✅ 所有操作已完成")
-                showSuccessAndClose()
-            }
-
-        } catch (e: Exception) {
-            appendProgress("\n❌ 错误: ${e.message}")
-            Messages.showErrorDialog(project, "操作失败: ${e.message}", "错误")
-            close(CLOSE_EXIT_CODE)
-        }
+    override fun doCancelAction() {
+        super.doCancelAction()
     }
 
-    private fun appendProgress(text: String) {
-        SwingUtilities.invokeLater {
-            progressTextArea.append(text + "\n")
-            progressTextArea.caretPosition = progressTextArea.document.length
-        }
+    private fun executeRebaseWorkflow(currentBranch: String) {
+        ProgressManager.getInstance().run(
+            object : Task.Backgroundable(project, "变基并推送到 $selectedBranch", false) {
+                override fun run(indicator: ProgressIndicator) {
+                    try {
+                        if (changedFiles.isNotEmpty()) {
+                            indicator.text = "提交变更..."
+                            indicator.text2 = "发现 ${changedFiles.size} 个变动文件"
+
+                            service.addFiles(repository, changedFiles)
+                            service.commitChanges(repository, commitMessage)
+                        }
+
+                        indicator.text = "拉取远程分支..."
+                        indicator.text2 = "从远程拉取 $selectedBranch"
+                        service.fetchRemoteBranch(repository, selectedBranch)
+
+                        indicator.text = "变基中..."
+                        indicator.text2 = "将 $currentBranch 变基到 $selectedBranch"
+                        service.rebaseOnto(repository, selectedBranch)
+
+                        indicator.text = "推送到远程..."
+                        indicator.text2 = "强制推送 $currentBranch"
+                        service.forcePushBranch(repository, currentBranch)
+
+                        if (shouldCreateMR) {
+                            indicator.text = "创建Merge请求..."
+                            indicator.text2 = ""
+                            createMergeRequest(currentBranch)
+                        } else {
+                            notifySuccess("变基并推送完成")
+                        }
+
+                    } catch (e: Exception) {
+                        notifyError("操作失败: ${e.message}")
+                    }
+                }
+            }
+        )
     }
 
     private fun createMergeRequest(sourceBranch: String) {
@@ -277,33 +252,33 @@ class UnifiedRebaseDialog(
 
         when (result) {
             is MergeRequestResult.Success -> {
-                appendProgress("✓ Merge请求已创建")
-                appendProgress("URL: ${result.url}")
-                appendProgress("\n✅ 所有操作已完成")
-                showSuccessAndClose()
+                notifySuccess("变基推送完成，Merge请求已创建", result.url)
             }
             is MergeRequestResult.NotConfigured -> {
-                appendProgress("⚠ Merge请求未创建: ${result.reason}")
-                appendProgress("请在 设置 > 工具 > Git变基插件 中配置对应平台的访问凭证")
-                appendProgress("\n✅ 变基和推送已完成")
-                showSuccessAndClose()
+                notifySuccess("变基推送完成，但Merge请求未配置: ${result.reason}")
             }
             is MergeRequestResult.Error -> {
-                appendProgress("❌ Merge请求创建失败: ${result.message}")
-                appendProgress("\n✅ 变基和推送已完成")
-                showSuccessAndClose()
+                notifySuccess("变基推送完成，但Merge请求创建失败: ${result.message}")
             }
         }
     }
 
-    private fun showSuccessAndClose() {
-        SwingUtilities.invokeLater {
-            Timer(2000) {
-                close(OK_EXIT_CODE)
-            }.apply {
-                isRepeats = false
-                start()
-            }
+    private fun notifySuccess(message: String, url: String? = null) {
+        val fullMessage = if (url != null) {
+            "$message\n<a href='$url'>查看Merge请求</a>"
+        } else {
+            message
         }
+        com.intellij.notification.NotificationGroupManager.getInstance()
+            .getNotificationGroup("Git Rebase Plugin")
+            .createNotification(fullMessage, com.intellij.notification.NotificationType.INFORMATION)
+            .notify(project)
+    }
+
+    private fun notifyError(message: String) {
+        com.intellij.notification.NotificationGroupManager.getInstance()
+            .getNotificationGroup("Git Rebase Plugin")
+            .createNotification(message, com.intellij.notification.NotificationType.ERROR)
+            .notify(project)
     }
 }
