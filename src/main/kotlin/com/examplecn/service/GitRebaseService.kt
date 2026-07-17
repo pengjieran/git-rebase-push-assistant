@@ -86,7 +86,10 @@ class GitRebaseService(private val project: Project) {
                 result.output
                     .filter { it.isNotBlank() }
                     .map { line ->
-                        line.substring(3).trim()
+                        val path = line.substring(3).trim()
+                        // Rename/copy entries are formatted as "old -> new"; only the new path is a valid pathspec.
+                        val arrowIndex = path.indexOf(" -> ")
+                        if (arrowIndex >= 0) path.substring(arrowIndex + 4) else path
                     }
             } else {
                 emptyList()

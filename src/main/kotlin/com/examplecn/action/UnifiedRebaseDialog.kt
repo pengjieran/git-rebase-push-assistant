@@ -1,5 +1,6 @@
 package com.examplecn.action
 
+import com.examplecn.config.GitRebaseSettings
 import com.examplecn.service.GitRebaseService
 import com.examplecn.service.MergeRequestResult
 import com.examplecn.service.MergeRequestService
@@ -59,7 +60,9 @@ class UnifiedRebaseDialog(
                 repository.currentBranch?.name
             })
 
+        val defaultTargetBranch = GitRebaseSettings.getInstance(project).state.defaultTargetBranch
         val suggestedBranch = when {
+            branches.contains(defaultTargetBranch) && currentBranch != defaultTargetBranch -> defaultTargetBranch
             branches.contains("master") && currentBranch != "master" -> "master"
             branches.contains("main") && currentBranch != "main" -> "main"
             branches.contains("develop") && currentBranch != "develop" -> "develop"
@@ -248,7 +251,7 @@ class UnifiedRebaseDialog(
                         if (shouldCreateMR) {
                             indicator.text = "创建Merge请求..."
                             indicator.text2 = ""
-                            createMergeRequest(currentBranch)
+                            createMergeRequest(currentBranch, commitMessage)
                         } else {
                             notifySuccess("变基并推送完成")
                         }
@@ -261,12 +264,13 @@ class UnifiedRebaseDialog(
         )
     }
 
-    private fun createMergeRequest(sourceBranch: String) {
+    private fun createMergeRequest(sourceBranch: String, description: String) {
         val mrService = project.service<MergeRequestService>()
         val result = mrService.createMergeRequest(
             repository,
             sourceBranch,
-            selectedBranch
+            selectedBranch,
+            description
         )
 
         when (result) {

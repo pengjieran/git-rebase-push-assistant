@@ -14,7 +14,7 @@ import kotlin.random.Random
  * 示例ToolWindow
  * 这是IntelliJ Platform Plugin Template自带的示例，展示如何创建Tool Window
  */
-class MyToolWindowFactory : ToolWindowFactory {
+class GitPluginWindowFactory : ToolWindowFactory {
 
     override fun createToolWindowContent(project: Project, toolWindow: ToolWindow) {
         val myToolWindow = MyToolWindow(toolWindow)
