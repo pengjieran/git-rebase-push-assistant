@@ -21,6 +21,7 @@ import com.intellij.ui.components.*
 import com.intellij.ui.TitledSeparator
 import com.intellij.util.ui.JBUI
 import com.intellij.util.ui.UIUtil
+import com.intellij.util.ui.JBDimension
 import git4idea.repo.GitRepository
 import java.awt.BorderLayout
 import java.awt.Dimension
@@ -108,6 +109,17 @@ class UnifiedRebaseDialog(
         }
 
         init()
+
+        // 设置OK按钮为默认样式（类似提交按钮）
+        setOKButtonText(GitRebaseBundle.message("dialog.ok.button"))
+        setCancelButtonText(GitRebaseBundle.message("dialog.cancel.button"))
+    }
+
+    override fun createActions(): Array<javax.swing.Action> {
+        val actions = super.createActions()
+        // 将OK按钮设置为默认按钮（获得焦点并使用蓝色高亮样式）
+        myOKAction.putValue(javax.swing.Action.DEFAULT, true)
+        return actions
     }
 
     override fun createCenterPanel(): JComponent {
