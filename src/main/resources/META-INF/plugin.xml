@@ -33,8 +33,6 @@
     <actions>
         <action id="GitRebaseAndPush"
                 class="com.examplecn.action.GitRebaseAndPushAction"
-                text="Rebase and Push..."
-                description="Rebase current branch onto target branch and push"
                 icon="AllIcons.Vcs.Push">
             <add-to-group group-id="Vcs.CommitExecutor.Actions" anchor="last"/>
         </action>

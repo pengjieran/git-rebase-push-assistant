@@ -1,5 +1,6 @@
 package com.examplecn.action
 
+import com.examplecn.bundle.GitRebaseBundle
 import com.examplecn.config.GitRebaseSettings
 import com.examplecn.service.GitRebaseService
 import com.examplecn.service.MergeRequestResult
@@ -28,7 +29,8 @@ import javax.swing.*
 
 class UnifiedRebaseDialog(
     private val project: Project,
-    private val repository: GitRepository
+    private val repository: GitRepository,
+    private val initialCommitMessage: String? = null
 ) : DialogWrapper(project) {
 
     private val service = project.service<GitRebaseService>()
@@ -51,7 +53,7 @@ class UnifiedRebaseDialog(
         private set
 
     init {
-        title = "变基并推送"
+        title = GitRebaseBundle.message("dialog.title")
 
         branches = service.getRemoteBranches(repository)
         changedFiles = service.getChangedFiles(repository)
@@ -79,11 +81,16 @@ class UnifiedRebaseDialog(
         )
         branchField.setPreferredWidth(400)
 
-        createMRCheckBox = JBCheckBox("推送后自动提交merge请求", false)
+        createMRCheckBox = JBCheckBox(GitRebaseBundle.message("option.create.mr"), false)
 
-        appendTypeComboBox = JComboBox(arrayOf("Co-Authored-By", "JIRA", "#webhook", "自定义内容"))
+        appendTypeComboBox = JComboBox(arrayOf(
+            GitRebaseBundle.message("commit.append.co.authored"),
+            GitRebaseBundle.message("commit.append.jira"),
+            GitRebaseBundle.message("commit.append.webhook"),
+            GitRebaseBundle.message("commit.append.custom")
+        ))
         appendInputField = JTextField(20)
-        addAppendButton = JButton("添加")
+        addAppendButton = JButton(GitRebaseBundle.message("commit.append.button"))
 
         appendTypeComboBox.addActionListener { updateAppendInputState() }
         appendInputField.document.addDocumentListener(object : javax.swing.event.DocumentListener {
@@ -94,6 +101,11 @@ class UnifiedRebaseDialog(
         addAppendButton.addActionListener { appendContent() }
 
         updateAppendInputState()
+
+        // 如果从提交框架传入了初始提交信息，则预填充
+        if (!initialCommitMessage.isNullOrBlank()) {
+            messageArea.text = initialCommitMessage
+        }
 
         init()
     }
@@ -107,7 +119,7 @@ class UnifiedRebaseDialog(
         contentPanel.layout = BoxLayout(contentPanel, BoxLayout.Y_AXIS)
 
         // ===== 目标分支部分 =====
-        contentPanel.add(TitledSeparator("目标分支"))
+        contentPanel.add(TitledSeparator(GitRebaseBundle.message("dialog.section.target.branch")))
         contentPanel.add(Box.createVerticalStrut(8))
 
         val branchPanel = JPanel(BorderLayout(8, 0))
@@ -123,7 +135,7 @@ class UnifiedRebaseDialog(
         contentPanel.add(Box.createVerticalStrut(16))
 
         // ===== 变动文件部分 =====
-        contentPanel.add(TitledSeparator("变动文件"))
+        contentPanel.add(TitledSeparator(GitRebaseBundle.message("dialog.section.changed.files")))
         contentPanel.add(Box.createVerticalStrut(8))
 
         val filesPanel = JPanel(BorderLayout(0, 8))
@@ -131,11 +143,11 @@ class UnifiedRebaseDialog(
 
         val filesCountLabel = JBLabel()
         if (changedFiles.isEmpty()) {
-            filesCountLabel.text = "无变动文件"
+            filesCountLabel.text = GitRebaseBundle.message("files.no.changes")
             filesCountLabel.foreground = UIUtil.getInactiveTextColor()
             filesCountLabel.icon = AllIcons.General.InspectionsOK
         } else {
-            filesCountLabel.text = "${changedFiles.size} 个文件将被提交"
+            filesCountLabel.text = GitRebaseBundle.message("files.count", changedFiles.size)
             filesCountLabel.icon = AllIcons.Vcs.Changelist
         }
         filesPanel.add(filesCountLabel, BorderLayout.NORTH)
@@ -163,7 +175,7 @@ class UnifiedRebaseDialog(
             warningPanel.border = JBUI.Borders.empty(6, 8)
 
             val warningIcon = JBLabel(AllIcons.General.Warning)
-            val warningText = JBLabel("<html>所有变更文件将被自动提交（变基要求工作目录干净）</html>")
+            val warningText = JBLabel("<html>${GitRebaseBundle.message("files.warning")}</html>")
             warningText.foreground = JBUI.CurrentTheme.Banner.FOREGROUND
 
             warningPanel.add(warningIcon)
@@ -177,7 +189,7 @@ class UnifiedRebaseDialog(
         contentPanel.add(Box.createVerticalStrut(16))
 
         // ===== 提交信息部分 =====
-        contentPanel.add(TitledSeparator("提交信息"))
+        contentPanel.add(TitledSeparator(GitRebaseBundle.message("dialog.section.commit.message")))
         contentPanel.add(Box.createVerticalStrut(8))
 
         val messagePanel = JPanel(BorderLayout())
@@ -186,7 +198,7 @@ class UnifiedRebaseDialog(
         messageArea.lineWrap = true
         messageArea.wrapStyleWord = true
         messageArea.border = JBUI.Borders.empty(6, 8)
-        messageArea.emptyText.text = "请输入提交信息…"
+        messageArea.emptyText.text = GitRebaseBundle.message("commit.message.placeholder")
         val messageScroll = JBScrollPane(messageArea)
         messageScroll.preferredSize = Dimension(0, 90)
         messageScroll.border = JBUI.Borders.customLine(UIUtil.getBoundsColor(), 1)
@@ -199,7 +211,7 @@ class UnifiedRebaseDialog(
         val appendPanel = JPanel(FlowLayout(FlowLayout.LEFT, 6, 2))
         appendPanel.border = JBUI.Borders.empty(0, 12, 0, 0)
 
-        val appendLabel = JBLabel("追加:", AllIcons.General.Add, JBLabel.LEFT)
+        val appendLabel = JBLabel(GitRebaseBundle.message("commit.append.label"), AllIcons.General.Add, JBLabel.LEFT)
         appendLabel.foreground = UIUtil.getInactiveTextColor()
         appendPanel.add(appendLabel)
         appendPanel.add(appendTypeComboBox)
@@ -210,7 +222,7 @@ class UnifiedRebaseDialog(
         contentPanel.add(Box.createVerticalStrut(16))
 
         // ===== 其他选项 =====
-        contentPanel.add(TitledSeparator("其他选项"))
+        contentPanel.add(TitledSeparator(GitRebaseBundle.message("dialog.section.options")))
         contentPanel.add(Box.createVerticalStrut(4))
 
         val mrPanel = JPanel(BorderLayout())
@@ -227,15 +239,19 @@ class UnifiedRebaseDialog(
     override fun doOKAction() {
         selectedBranch = branchField.text.trim()
         if (selectedBranch.isEmpty()) {
-            Messages.showErrorDialog(project, "请选择一个目标分支", "错误")
+            Messages.showErrorDialog(
+                project,
+                GitRebaseBundle.message("error.select.branch"),
+                GitRebaseBundle.message("error.title")
+            )
             return
         }
 
         if (!branches.contains(selectedBranch)) {
             Messages.showErrorDialog(
                 project,
-                "分支 \"$selectedBranch\" 不存在，请从建议列表中选择一个有效的分支",
-                "错误"
+                GitRebaseBundle.message("error.branch.not.exist", selectedBranch),
+                GitRebaseBundle.message("error.title")
             )
             return
         }
@@ -246,12 +262,20 @@ class UnifiedRebaseDialog(
             })
 
         if (selectedBranch == currentBranch) {
-            Messages.showErrorDialog(project, "不能变基到当前分支", "错误")
+            Messages.showErrorDialog(
+                project,
+                GitRebaseBundle.message("error.rebase.same.branch"),
+                GitRebaseBundle.message("error.title")
+            )
             return
         }
 
         if (changedFiles.isNotEmpty() && messageArea.text.isBlank()) {
-            Messages.showErrorDialog(project, "有变动文件时必须填写提交信息", "错误")
+            Messages.showErrorDialog(
+                project,
+                GitRebaseBundle.message("error.commit.message.required"),
+                GitRebaseBundle.message("error.title")
+            )
             return
         }
 
@@ -268,7 +292,10 @@ class UnifiedRebaseDialog(
         super.doCancelAction()
     }
 
-    private fun requiresInput(type: String): Boolean = type == "JIRA" || type == "自定义内容"
+    private fun requiresInput(type: String): Boolean {
+        return type == GitRebaseBundle.message("commit.append.jira") ||
+               type == GitRebaseBundle.message("commit.append.custom")
+    }
 
     private fun updateAppendInputState() {
         val type = appendTypeComboBox.selectedItem as String
@@ -289,18 +316,16 @@ class UnifiedRebaseDialog(
         val input = appendInputField.text.trim()
 
         val tag = when (type) {
-            "Co-Authored-By" -> "Co-Authored-By"
-            "JIRA" -> {
+            GitRebaseBundle.message("commit.append.co.authored") -> "Co-Authored-By"
+            GitRebaseBundle.message("commit.append.jira") -> {
                 if (input.isEmpty()) return
                 "\$(JIRA:$input)"
             }
-
-            "#webhook" -> "#webhook"
-            "自定义内容" -> {
+            GitRebaseBundle.message("commit.append.webhook") -> "#webhook"
+            GitRebaseBundle.message("commit.append.custom") -> {
                 if (input.isEmpty()) return
                 input
             }
-
             else -> return
         }
 
@@ -313,39 +338,39 @@ class UnifiedRebaseDialog(
 
     private fun executeRebaseWorkflow(currentBranch: String) {
         ProgressManager.getInstance().run(
-            object : Task.Backgroundable(project, "变基并推送到 $selectedBranch", false) {
+            object : Task.Backgroundable(project, GitRebaseBundle.message("progress.title", selectedBranch), false) {
                 override fun run(indicator: ProgressIndicator) {
                     try {
                         if (changedFiles.isNotEmpty()) {
-                            indicator.text = "提交变更..."
-                            indicator.text2 = "发现 ${changedFiles.size} 个变动文件"
+                            indicator.text = GitRebaseBundle.message("progress.commit.changes")
+                            indicator.text2 = GitRebaseBundle.message("progress.commit.files", changedFiles.size)
 
                             service.addFiles(repository, changedFiles)
                             service.commitChanges(repository, commitMessage)
                         }
 
-                        indicator.text = "拉取远程分支..."
-                        indicator.text2 = "从远程拉取 $selectedBranch"
+                        indicator.text = GitRebaseBundle.message("progress.fetch.remote")
+                        indicator.text2 = GitRebaseBundle.message("progress.fetch.from.remote", selectedBranch)
                         service.fetchRemoteBranch(repository, selectedBranch)
 
-                        indicator.text = "变基中..."
-                        indicator.text2 = "将 $currentBranch 变基到 $selectedBranch"
+                        indicator.text = GitRebaseBundle.message("progress.rebasing")
+                        indicator.text2 = GitRebaseBundle.message("progress.rebase.onto", currentBranch, selectedBranch)
                         service.rebaseOnto(repository, selectedBranch)
 
-                        indicator.text = "推送到远程..."
-                        indicator.text2 = "强制推送 $currentBranch"
+                        indicator.text = GitRebaseBundle.message("progress.pushing")
+                        indicator.text2 = GitRebaseBundle.message("progress.force.push", currentBranch)
                         service.forcePushBranch(repository, currentBranch)
 
                         if (shouldCreateMR) {
-                            indicator.text = "创建Merge请求..."
+                            indicator.text = GitRebaseBundle.message("progress.creating.mr")
                             indicator.text2 = ""
                             createMergeRequest(currentBranch, commitMessage)
                         } else {
-                            notifySuccess("变基并推送完成")
+                            notifySuccess(GitRebaseBundle.message("notification.success"))
                         }
 
                     } catch (e: Exception) {
-                        notifyError("操作失败: ${e.message}")
+                        notifyError(GitRebaseBundle.message("error.operation.failed", e.message ?: "Unknown"))
                     }
                 }
             }
@@ -363,22 +388,22 @@ class UnifiedRebaseDialog(
 
         when (result) {
             is MergeRequestResult.Success -> {
-                notifySuccess("变基推送完成，Merge请求已创建", result.url)
+                notifySuccess(GitRebaseBundle.message("notification.success.with.mr"), result.url)
             }
 
             is MergeRequestResult.NotConfigured -> {
-                notifySuccess("变基推送完成，但Merge请求未配置: ${result.reason}")
+                notifySuccess("${GitRebaseBundle.message("notification.success")}, ${result.reason}")
             }
 
             is MergeRequestResult.Error -> {
-                notifySuccess("变基推送完成，但Merge请求创建失败: ${result.message}")
+                notifySuccess("${GitRebaseBundle.message("notification.success")}, ${result.message}")
             }
         }
     }
 
     private fun notifySuccess(message: String, url: String? = null) {
         val fullMessage = if (url != null) {
-            "$message\n<a href='$url'>查看Merge请求</a>"
+            "$message\n<a href='$url'>${GitRebaseBundle.message("notification.view.mr")}</a>"
         } else {
             message
         }
