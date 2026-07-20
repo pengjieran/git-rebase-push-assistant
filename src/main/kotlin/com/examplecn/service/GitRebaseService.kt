@@ -75,6 +75,7 @@ class GitRebaseService(private val project: Project) {
 
     /**
      * 获取未提交的变动文件（包括未暂存和已暂存）
+     * 返回包含状态码和文件路径的列表
      */
     fun getChangedFiles(repository: GitRepository): List<String> {
         return try {
@@ -91,6 +92,7 @@ class GitRebaseService(private val project: Project) {
                         val arrowIndex = path.indexOf(" -> ")
                         if (arrowIndex >= 0) path.substring(arrowIndex + 4) else path
                     }
+                    .filter { it.isNotEmpty() }
             } else {
                 emptyList()
             }
@@ -101,9 +103,16 @@ class GitRebaseService(private val project: Project) {
 
     /**
      * 添加文件到暂存区
+     * 使用 -A 参数以正确处理删除的文件
      */
     fun addFiles(repository: GitRepository, files: List<String>) {
+        if (files.isEmpty()) {
+            return
+        }
+
         val handler = GitLineHandler(project, repository.root, GitCommand.ADD)
+        // 使用 -A 参数可以处理新增、修改和删除的文件
+        handler.addParameters("-A")
         handler.addParameters(files)
         val result = Git.getInstance().runCommand(handler)
 
