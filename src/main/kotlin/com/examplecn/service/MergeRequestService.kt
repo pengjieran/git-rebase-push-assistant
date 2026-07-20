@@ -1,5 +1,6 @@
 package com.examplecn.service
 
+import com.examplecn.bundle.GitRebaseBundle
 import com.intellij.credentialStore.CredentialAttributes
 import com.intellij.credentialStore.Credentials
 import com.intellij.credentialStore.generateServiceName
@@ -35,7 +36,7 @@ class MergeRequestService(private val project: Project) {
         val remoteUrl = com.intellij.openapi.application.ApplicationManager.getApplication()
             .runReadAction(com.intellij.openapi.util.Computable {
                 repository.remotes.firstOrNull { it.name == "origin" }?.firstUrl
-            }) ?: return MergeRequestResult.NotConfigured("未找到origin远程仓库")
+            }) ?: return MergeRequestResult.NotConfigured(GitRebaseBundle.message("mr.error.no.remote"))
 
         val platform = detectPlatform(remoteUrl)
 
@@ -59,7 +60,7 @@ class MergeRequestService(private val project: Project) {
         description: String
     ): MergeRequestResult {
         val gitlabInfo = parseGitLabUrl(remoteUrl)
-            ?: return MergeRequestResult.Error("无法解析GitLab URL: $remoteUrl")
+            ?: return MergeRequestResult.Error(GitRebaseBundle.message("mr.error.parse.gitlab.url", remoteUrl))
 
         // 获取GitLab Token
         var token = getGitLabToken(gitlabInfo.baseUrl)
@@ -72,7 +73,7 @@ class MergeRequestService(private val project: Project) {
                         "merge_request[source_branch]=${URLEncoder.encode(sourceBranch, "UTF-8")}&" +
                         "merge_request[target_branch]=${URLEncoder.encode(targetBranch, "UTF-8")}"
                 return MergeRequestResult.NotConfigured(
-                    "未配置GitLab Token，无法自动创建MR\n请点击以下链接手动创建:\n$mrUrl"
+                    "${GitRebaseBundle.message("mr.not.configured")}\n${GitRebaseBundle.message("mr.manual.link")}\n$mrUrl"
                 )
             }
         }
@@ -82,7 +83,7 @@ class MergeRequestService(private val project: Project) {
             val projectId = URLEncoder.encode(gitlabInfo.projectPath, "UTF-8")
             val apiUrl = "${gitlabInfo.baseUrl}/api/v4/projects/$projectId/merge_requests"
 
-            val title = "合并 $sourceBranch 到 $targetBranch"
+            val title = GitRebaseBundle.message("gitlab.mr.title", sourceBranch, targetBranch)
 
             val response = callGitLabAPI(apiUrl, token, sourceBranch, targetBranch, title, description)
 
@@ -93,7 +94,7 @@ class MergeRequestService(private val project: Project) {
                         "merge_request[source_branch]=${URLEncoder.encode(sourceBranch, "UTF-8")}&" +
                         "merge_request[target_branch]=${URLEncoder.encode(targetBranch, "UTF-8")}"
                 MergeRequestResult.Error(
-                    "GitLab API调用失败: ${response.error}\n请点击以下链接手动创建:\n$mrUrl"
+                    "${GitRebaseBundle.message("mr.api.failed", response.error)}\n${GitRebaseBundle.message("mr.manual.link")}\n$mrUrl"
                 )
             }
         } catch (e: Exception) {
@@ -101,7 +102,7 @@ class MergeRequestService(private val project: Project) {
                     "merge_request[source_branch]=${URLEncoder.encode(sourceBranch, "UTF-8")}&" +
                     "merge_request[target_branch]=${URLEncoder.encode(targetBranch, "UTF-8")}"
             MergeRequestResult.Error(
-                "创建MR时发生异常: ${e.message}\n请点击以下链接手动创建:\n$mrUrl"
+                "${GitRebaseBundle.message("mr.exception", e.message ?: "Unknown")}\n${GitRebaseBundle.message("mr.manual.link")}\n$mrUrl"
             )
         }
     }
@@ -146,7 +147,7 @@ class MergeRequestService(private val project: Project) {
                 val responseBody = connection.inputStream.bufferedReader().use { it.readText() }
                 // 简单解析web_url
                 val mrUrl = extractJsonValue(responseBody, "web_url")
-                    ?: return GitLabAPIResponse(success = false, error = "无法解析响应中的web_url")
+                    ?: return GitLabAPIResponse(success = false, error = GitRebaseBundle.message("mr.response.no.url"))
                 GitLabAPIResponse(success = true, mrUrl = mrUrl)
             } else {
                 // 失败
@@ -181,12 +182,12 @@ class MergeRequestService(private val project: Project) {
         targetBranch: String
     ): MergeRequestResult {
         val repoPath = parseGitHubRepoPath(remoteUrl)
-            ?: return MergeRequestResult.Error("无法解析GitHub URL: $remoteUrl")
+            ?: return MergeRequestResult.Error(GitRebaseBundle.message("mr.error.parse.github.url", remoteUrl))
 
         val prUrl = "https://github.com/$repoPath/compare/$targetBranch...$sourceBranch"
 
         return MergeRequestResult.NotConfigured(
-            "GitHub PR自动创建功能暂未实现\n请点击以下链接手动创建:\n$prUrl"
+            "${GitRebaseBundle.message("mr.github.not.implemented")}\n${GitRebaseBundle.message("mr.manual.link")}\n$prUrl"
         )
     }
 
@@ -211,11 +212,8 @@ class MergeRequestService(private val project: Project) {
         com.intellij.openapi.application.ApplicationManager.getApplication().invokeAndWait {
             token = Messages.showInputDialog(
                 project,
-                "请输入GitLab Personal Access Token\n" +
-                "Token需要api权限，可在以下链接创建:\n" +
-                "$baseUrl/-/profile/personal_access_tokens\n\n" +
-                "Token将安全存储在系统密钥链中",
-                "GitLab Token配置",
+                GitRebaseBundle.message("gitlab.token.prompt.message", baseUrl),
+                GitRebaseBundle.message("gitlab.token.prompt.title"),
                 Messages.getQuestionIcon()
             )
         }
