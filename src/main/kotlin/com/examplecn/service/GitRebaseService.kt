@@ -42,6 +42,7 @@ class GitRebaseService(private val project: Project) {
 
     /**
      * 强制推送当前分支（使用--force-with-lease保护）
+     * 如果远程分支已被删除导致stale info错误，则回退使用--force
      */
     fun forcePushBranch(repository: GitRepository, branch: String) {
         val handler = GitLineHandler(project, repository.root, GitCommand.PUSH)
@@ -49,7 +50,21 @@ class GitRebaseService(private val project: Project) {
         val result = Git.getInstance().runCommand(handler)
 
         if (!result.success()) {
-            throw VcsException("Push failed: ${result.errorOutputAsJoinedString}")
+            val errorOutput = result.errorOutputAsJoinedString
+
+            // 检测是否是远程分支已删除导致的stale info错误
+            if (errorOutput.contains("stale info") || errorOutput.contains("rejected")) {
+                // 远程分支可能已被删除，使用--force重试
+                val forceHandler = GitLineHandler(project, repository.root, GitCommand.PUSH)
+                forceHandler.addParameters("--force", "origin", branch)
+                val forceResult = Git.getInstance().runCommand(forceHandler)
+
+                if (!forceResult.success()) {
+                    throw VcsException("Push failed: ${forceResult.errorOutputAsJoinedString}")
+                }
+            } else {
+                throw VcsException("Push failed: $errorOutput")
+            }
         }
     }
 
