@@ -1,6 +1,6 @@
 import org.jetbrains.intellij.platform.gradle.extensions.intellijPlatform
 
-rootProject.name = "git-plugin"
+rootProject.name = "git-rebase-push-assistant"
 
 pluginManagement {
     plugins {
