@@ -78,6 +78,12 @@ class MergeRequestService(private val project: Project) {
             }
         }
 
+        // 检查是否已有相同的MR
+        val existingMR = checkExistingMR(gitlabInfo, token, sourceBranch, targetBranch)
+        if (existingMR != null) {
+            return MergeRequestResult.Success(existingMR)
+        }
+
         // 调用GitLab API创建MR
         return try {
             val projectId = URLEncoder.encode(gitlabInfo.projectPath, "UTF-8")
@@ -104,6 +110,52 @@ class MergeRequestService(private val project: Project) {
             MergeRequestResult.Error(
                 "${GitRebaseBundle.message("mr.exception", e.message ?: "Unknown")}\n${GitRebaseBundle.message("mr.manual.link")}\n$mrUrl"
             )
+        }
+    }
+
+    /**
+     * 检查是否已经存在相同的MR（source_branch和target_branch相同且状态为opened）
+     * 返回已存在MR的web_url，如果不存在则返回null
+     */
+    private fun checkExistingMR(
+        gitlabInfo: GitLabInfo,
+        token: String,
+        sourceBranch: String,
+        targetBranch: String
+    ): String? {
+        return try {
+            val projectId = URLEncoder.encode(gitlabInfo.projectPath, "UTF-8")
+            val apiUrl = "${gitlabInfo.baseUrl}/api/v4/projects/$projectId/merge_requests?" +
+                    "state=opened&" +
+                    "source_branch=${URLEncoder.encode(sourceBranch, "UTF-8")}&" +
+                    "target_branch=${URLEncoder.encode(targetBranch, "UTF-8")}"
+
+            val url = URI(apiUrl).toURL()
+            val connection = url.openConnection() as HttpURLConnection
+
+            connection.requestMethod = "GET"
+            connection.setRequestProperty("PRIVATE-TOKEN", token)
+            connection.connectTimeout = 10000
+            connection.readTimeout = 10000
+
+            val responseCode = connection.responseCode
+
+            if (responseCode in 200..299) {
+                val responseBody = connection.inputStream.bufferedReader().use { it.readText() }
+                // 响应是一个数组，检查是否非空
+                if (responseBody.trim().startsWith("[") && responseBody.trim() != "[]") {
+                    // 提取第一个MR的web_url
+                    extractJsonValue(responseBody, "web_url")
+                } else {
+                    null
+                }
+            } else {
+                // 查询失败，返回null继续创建
+                null
+            }
+        } catch (e: Exception) {
+            // 出错时返回null，继续尝试创建
+            null
         }
     }
 
