@@ -16,8 +16,6 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.DialogWrapper
 import com.intellij.openapi.ui.Messages
 import com.intellij.icons.AllIcons
-import com.intellij.ui.TextFieldWithAutoCompletion
-import com.intellij.ui.TextFieldWithAutoCompletionListProvider
 import com.intellij.ui.components.*
 import com.intellij.ui.TitledSeparator
 import com.intellij.util.ui.JBUI
@@ -27,6 +25,7 @@ import git4idea.repo.GitRepository
 import java.awt.BorderLayout
 import java.awt.Dimension
 import java.awt.FlowLayout
+import java.awt.event.ItemEvent
 import javax.swing.*
 
 class UnifiedRebaseDialog(
@@ -39,7 +38,7 @@ class UnifiedRebaseDialog(
     private val branches: List<String>
     private val changedFiles: List<String>
 
-    private val branchField: TextFieldWithAutoCompletion<String>
+    private val branchComboBox: JComboBox<String>
     private val messageArea = JBTextArea(4, 50)
     private val createMRCheckBox: JBCheckBox
     private val aiGenerateButton: JButton
@@ -75,14 +74,59 @@ class UnifiedRebaseDialog(
             else -> branches.firstOrNull { it != currentBranch }
         }
 
-        val provider = FuzzyBranchCompletionProvider(branches)
-        branchField = TextFieldWithAutoCompletion(
-            project,
-            provider,
-            false,
-            suggestedBranch ?: ""
-        )
-        branchField.setPreferredWidth(400)
+        // 创建可编辑的下拉框，支持直接输入和模糊搜索
+        branchComboBox = JComboBox(branches.toTypedArray())
+        branchComboBox.isEditable = true
+        branchComboBox.selectedItem = suggestedBranch ?: ""
+
+        // 添加自定义过滤器实现模糊搜索
+        val editor = branchComboBox.editor.editorComponent as? JTextField
+        editor?.let { textField ->
+            textField.document.addDocumentListener(object : javax.swing.event.DocumentListener {
+                override fun insertUpdate(e: javax.swing.event.DocumentEvent) = filterBranches()
+                override fun removeUpdate(e: javax.swing.event.DocumentEvent) = filterBranches()
+                override fun changedUpdate(e: javax.swing.event.DocumentEvent) = filterBranches()
+
+                private fun filterBranches() {
+                    if (branchComboBox.isPopupVisible) {
+                        val input = textField.text.lowercase()
+                        if (input.isEmpty()) {
+                            updateComboBoxItems(branches)
+                        } else {
+                            val filtered = branches.filter {
+                                it.lowercase().contains(input) ||
+                                fuzzyMatch(it.lowercase(), input)
+                            }
+                            updateComboBoxItems(filtered)
+                        }
+                    }
+                }
+
+                private fun fuzzyMatch(text: String, pattern: String): Boolean {
+                    var textIndex = 0
+                    for (char in pattern) {
+                        textIndex = text.indexOf(char, textIndex)
+                        if (textIndex == -1) return false
+                        textIndex++
+                    }
+                    return true
+                }
+
+                private fun updateComboBoxItems(items: List<String>) {
+                    val currentText = textField.text
+                    branchComboBox.removeAllItems()
+                    items.forEach { branchComboBox.addItem(it) }
+                    textField.text = currentText
+                }
+            })
+        }
+
+        // 防止选中时覆盖用户输入
+        branchComboBox.addItemListener { e ->
+            if (e.stateChange == ItemEvent.SELECTED && branchComboBox.isPopupVisible) {
+                editor?.text = e.item as? String ?: ""
+            }
+        }
 
         createMRCheckBox = JBCheckBox(GitRebaseBundle.message("option.create.mr"), false)
 
@@ -146,8 +190,8 @@ class UnifiedRebaseDialog(
         val branchIcon = JBLabel(AllIcons.Vcs.Branch)
         branchPanel.add(branchIcon, BorderLayout.WEST)
 
-        branchField.border = JBUI.Borders.empty(4)
-        branchPanel.add(branchField, BorderLayout.CENTER)
+        branchComboBox.preferredSize = Dimension(400, branchComboBox.preferredSize.height)
+        branchPanel.add(branchComboBox, BorderLayout.CENTER)
 
         contentPanel.add(branchPanel)
         contentPanel.add(Box.createVerticalStrut(16))
@@ -260,7 +304,9 @@ class UnifiedRebaseDialog(
     }
 
     override fun doOKAction() {
-        selectedBranch = branchField.text.trim()
+        val editor = branchComboBox.editor.editorComponent as? JTextField
+        selectedBranch = (editor?.text ?: branchComboBox.selectedItem as? String ?: "").trim()
+
         if (selectedBranch.isEmpty()) {
             Messages.showErrorDialog(
                 project,
@@ -587,50 +633,5 @@ class UnifiedRebaseDialog(
             }
         }
         dialog.show()
-    }
-}
-
-private class FuzzyBranchCompletionProvider(
-    branches: Collection<String>
-) : TextFieldWithAutoCompletionListProvider<String>(branches) {
-
-    override fun getLookupString(item: String): String = item
-
-    override fun compare(o1: String, o2: String): Int {
-        return o1.compareTo(o2, ignoreCase = true)
-    }
-
-    override fun createPrefixMatcher(prefix: String): com.intellij.codeInsight.completion.PrefixMatcher {
-        return FuzzyPrefixMatcher(prefix)
-    }
-}
-
-private class FuzzyPrefixMatcher(prefix: String) : com.intellij.codeInsight.completion.PrefixMatcher(prefix) {
-
-    private val matcher = com.intellij.psi.codeStyle.NameUtil.buildMatcher(
-        prefix,
-        com.intellij.psi.codeStyle.NameUtil.MatchingCaseSensitivity.NONE
-    )
-
-    override fun prefixMatches(name: String): Boolean {
-        if (myPrefix.isEmpty()) return true
-        if (name.startsWith(myPrefix, ignoreCase = true)) return true
-        return matcher.matches(name)
-    }
-
-    override fun cloneWithPrefix(newPrefix: String): com.intellij.codeInsight.completion.PrefixMatcher {
-        return if (newPrefix == myPrefix) this else FuzzyPrefixMatcher(newPrefix)
-    }
-
-    override fun isStartMatch(name: String): Boolean {
-        return name.startsWith(myPrefix, ignoreCase = true) || matcher.isStartMatch(name)
-    }
-
-    override fun matchingDegree(name: String): Int {
-        return when {
-            name.equals(myPrefix, ignoreCase = true) -> Int.MAX_VALUE
-            name.startsWith(myPrefix, ignoreCase = true) -> 1000
-            else -> matcher.matchingDegree(name)
-        }
     }
 }

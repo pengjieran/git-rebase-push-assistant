@@ -12,7 +12,6 @@ import git4idea.repo.GitRepository
 import java.io.OutputStreamWriter
 import java.net.HttpURLConnection
 import java.net.URI
-import java.net.URL
 import java.net.URLEncoder
 
 /**

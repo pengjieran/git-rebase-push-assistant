@@ -8,7 +8,6 @@ import java.io.InputStreamReader
 import java.io.OutputStreamWriter
 import java.net.HttpURLConnection
 import java.net.URI
-import java.net.URL
 import java.nio.charset.StandardCharsets
 
 /**
@@ -85,7 +84,7 @@ ${diff.take(4000)}
     }
 
     private fun callOpenAI(baseUrl: String, apiKey: String, model: String, prompt: String): String {
-        val url = URL("$baseUrl/chat/completions")
+        val url = URI.create("$baseUrl/chat/completions").toURL();
         val connection = url.openConnection() as HttpURLConnection
 
         try {
@@ -151,7 +150,7 @@ ${diff.take(4000)}
     }
   ],
   "temperature": 0.7,
-  "max_tokens": 200
+  "max_tokens": 1024
 }
         """.trim()
     }
