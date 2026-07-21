@@ -31,7 +31,9 @@ import javax.swing.*
 class UnifiedRebaseDialog(
     private val project: Project,
     private val repository: GitRepository,
-    private val initialCommitMessage: String? = null
+    private val initialCommitMessage: String? = null,
+    private val preloadedChangedFiles: List<String>? = null,
+    private val preloadedBranches: List<String>? = null
 ) : DialogWrapper(project) {
 
     private val service = project.service<GitRebaseService>()
@@ -57,8 +59,9 @@ class UnifiedRebaseDialog(
     init {
         title = GitRebaseBundle.message("dialog.title")
 
-        branches = service.getRemoteBranches(repository)
-        changedFiles = service.getChangedFiles(repository)
+        // Use preloaded data if provided (to avoid EDT blocking), otherwise load them
+        branches = preloadedBranches ?: service.getRemoteBranches(repository)
+        changedFiles = preloadedChangedFiles ?: emptyList()
 
         val currentBranch = ApplicationManager.getApplication()
             .runReadAction(com.intellij.openapi.util.Computable {
@@ -128,7 +131,7 @@ class UnifiedRebaseDialog(
             }
         }
 
-        createMRCheckBox = JBCheckBox(GitRebaseBundle.message("option.create.mr"), false)
+        createMRCheckBox = JBCheckBox(GitRebaseBundle.message("option.create.mr"), true)
 
         aiGenerateButton = JButton(GitRebaseBundle.message("openai.generate.button"))
         aiGenerateButton.icon = AllIcons.Actions.IntentionBulb

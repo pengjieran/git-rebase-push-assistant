@@ -1,9 +1,9 @@
-
 package com.examplecn.action
 
 import com.examplecn.bundle.GitRebaseBundle
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
+import com.intellij.openapi.components.service
 import com.intellij.openapi.ui.Messages
 import com.intellij.openapi.vcs.VcsDataKeys
 import git4idea.GitUtil
@@ -33,8 +33,37 @@ class GitRebaseAndPushAction : AnAction() {
         // 尝试从提交框架获取已填写的提交信息
         val commitMessage = extractCommitMessage(e)
 
-        val dialog = UnifiedRebaseDialog(project, repository, commitMessage)
-        dialog.show()
+        // Load changed files in background before showing dialog to avoid EDT blocking
+        com.intellij.openapi.progress.ProgressManager.getInstance().run(
+            object : com.intellij.openapi.progress.Task.Backgroundable(
+                project,
+                GitRebaseBundle.message("action.name"),
+                false
+            ) {
+                private var changedFiles: List<String> = emptyList()
+                private var branches: List<String> = emptyList()
+
+                override fun run(indicator: com.intellij.openapi.progress.ProgressIndicator) {
+                    indicator.text = "Loading repository data..."
+                    val service = project.service<com.examplecn.service.GitRebaseService>()
+                    changedFiles = service.getChangedFiles(repository)
+                    branches = service.getRemoteBranches(repository)
+                }
+
+                override fun onSuccess() {
+                    val dialog = UnifiedRebaseDialog(project, repository, commitMessage, changedFiles, branches)
+                    dialog.show()
+                }
+
+                override fun onThrowable(error: Throwable) {
+                    Messages.showErrorDialog(
+                        project,
+                        "Failed to load repository data: ${error.message}",
+                        GitRebaseBundle.message("error.title")
+                    )
+                }
+            }
+        )
     }
 
     /**
