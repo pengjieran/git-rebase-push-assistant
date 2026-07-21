@@ -5,6 +5,7 @@ import com.examplecn.config.GitRebaseSettings
 import com.examplecn.service.GitRebaseService
 import com.examplecn.service.MergeRequestResult
 import com.examplecn.service.MergeRequestService
+import com.examplecn.service.OpenAIService
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.ModalityState
 import com.intellij.openapi.components.service
@@ -41,6 +42,7 @@ class UnifiedRebaseDialog(
     private val branchField: TextFieldWithAutoCompletion<String>
     private val messageArea = JBTextArea(4, 50)
     private val createMRCheckBox: JBCheckBox
+    private val aiGenerateButton: JButton
 
     private val appendTypeComboBox: JComboBox<String>
     private val appendInputField: JTextField
@@ -83,6 +85,10 @@ class UnifiedRebaseDialog(
         branchField.setPreferredWidth(400)
 
         createMRCheckBox = JBCheckBox(GitRebaseBundle.message("option.create.mr"), false)
+
+        aiGenerateButton = JButton(GitRebaseBundle.message("openai.generate.button"))
+        aiGenerateButton.icon = AllIcons.Actions.IntentionBulb
+        aiGenerateButton.addActionListener { generateCommitMessageWithAI() }
 
         appendTypeComboBox = JComboBox(arrayOf(
             GitRebaseBundle.message("commit.append.co.authored"),
@@ -206,6 +212,11 @@ class UnifiedRebaseDialog(
 
         val messagePanel = JPanel(BorderLayout())
         messagePanel.border = JBUI.Borders.empty(0, 12, 0, 0)
+
+        // 顶部按钮栏（AI生成按钮）
+        val messageTopPanel = JPanel(FlowLayout(FlowLayout.RIGHT, 0, 0))
+        messageTopPanel.add(aiGenerateButton)
+        messagePanel.add(messageTopPanel, BorderLayout.NORTH)
 
         messageArea.lineWrap = true
         messageArea.wrapStyleWord = true
@@ -430,6 +441,152 @@ class UnifiedRebaseDialog(
             .getNotificationGroup("Git Rebase Plugin")
             .createNotification(message, com.intellij.notification.NotificationType.ERROR)
             .notify(project)
+    }
+
+    private fun generateCommitMessageWithAI() {
+        if (changedFiles.isEmpty()) {
+            Messages.showInfoMessage(
+                project,
+                "没有变更文件，无需生成提交信息",
+                "AI生成"
+            )
+            return
+        }
+
+        val settings = GitRebaseSettings.getInstance(project).state
+        if (settings.openaiApiKey.isBlank()) {
+            val result = Messages.showYesNoDialog(
+                project,
+                GitRebaseBundle.message("openai.error.not.configured"),
+                "AI生成",
+                "去配置",
+                "取消",
+                Messages.getWarningIcon()
+            )
+            if (result == Messages.YES) {
+                // 打开设置页面
+                com.intellij.openapi.options.ShowSettingsUtil.getInstance()
+                    .showSettingsDialog(project, "Git Rebase & Push")
+            }
+            return
+        }
+
+        // 禁用编辑和按钮，显示生成状态
+        messageArea.isEditable = false
+        aiGenerateButton.isEnabled = false
+        aiGenerateButton.text = GitRebaseBundle.message("openai.generating")
+
+        // 使用 ProgressManager 显示后台任务状态
+        ProgressManager.getInstance().run(
+            object : Task.Backgroundable(project, "AI生成提交信息", false) {
+                var generatedMessage: String? = null
+                var errorMessage: String? = null
+
+                override fun run(indicator: ProgressIndicator) {
+                    try {
+                        indicator.text = "正在获取代码变更..."
+                        val diff = service.getDiff(repository)
+
+                        indicator.text = "正在调用OpenAI API..."
+                        indicator.text2 = "生成中，请稍候"
+
+                        val openaiService = OpenAIService.getInstance(project)
+                        val result = openaiService.generateCommitMessage(changedFiles, diff)
+
+                        if (result.isSuccess) {
+                            generatedMessage = result.getOrNull()
+                            indicator.text = "生成成功"
+                        } else {
+                            errorMessage = result.exceptionOrNull()?.message ?: "Unknown"
+                            indicator.text = "生成失败"
+                        }
+                    } catch (e: Exception) {
+                        errorMessage = e.message ?: "Unknown"
+                    }
+                }
+
+                override fun onSuccess() {
+                    // 恢复UI状态
+                    messageArea.isEditable = true
+                    aiGenerateButton.isEnabled = true
+                    aiGenerateButton.text = GitRebaseBundle.message("openai.generate.button")
+
+                    if (generatedMessage != null) {
+                        // 成功：直接替换提交信息
+                        messageArea.text = generatedMessage
+                        messageArea.caretPosition = 0
+
+                        // 显示成功通知（简短提示）
+                        com.intellij.notification.NotificationGroupManager.getInstance()
+                            .getNotificationGroup("Git Rebase Plugin")
+                            .createNotification(
+                                "提交信息已生成",
+                                com.intellij.notification.NotificationType.INFORMATION
+                            )
+                            .notify(project)
+                    } else if (errorMessage != null) {
+                        // 失败：显示详细错误
+                        if (errorMessage!!.length > 200 || errorMessage!!.contains("\n")) {
+                            showDetailedErrorDialog(errorMessage!!)
+                        } else {
+                            Messages.showErrorDialog(
+                                project,
+                                GitRebaseBundle.message("openai.error.failed", errorMessage!!),
+                                "AI生成失败"
+                            )
+                        }
+                    }
+                }
+
+                override fun onThrowable(error: Throwable) {
+                    // 恢复UI状态
+                    messageArea.isEditable = true
+                    aiGenerateButton.isEnabled = true
+                    aiGenerateButton.text = GitRebaseBundle.message("openai.generate.button")
+
+                    val msg = error.message ?: "Unknown"
+                    if (msg.length > 200 || msg.contains("\n")) {
+                        showDetailedErrorDialog(msg)
+                    } else {
+                        Messages.showErrorDialog(
+                            project,
+                            GitRebaseBundle.message("openai.error.failed", msg),
+                            "AI生成失败"
+                        )
+                    }
+                }
+            }
+        )
+    }
+
+    private fun showDetailedErrorDialog(errorMessage: String) {
+        val dialog = object : DialogWrapper(project) {
+            init {
+                title = "AI生成失败"
+                init()
+            }
+
+            override fun createCenterPanel(): JComponent {
+                val panel = JPanel(BorderLayout())
+                panel.preferredSize = JBDimension(600, 300)
+
+                val textArea = JBTextArea(errorMessage)
+                textArea.isEditable = false
+                textArea.lineWrap = true
+                textArea.wrapStyleWord = true
+                textArea.caretPosition = 0
+
+                val scrollPane = JBScrollPane(textArea)
+                panel.add(scrollPane, BorderLayout.CENTER)
+
+                return panel
+            }
+
+            override fun createActions(): Array<javax.swing.Action> {
+                return arrayOf(okAction)
+            }
+        }
+        dialog.show()
     }
 }
 

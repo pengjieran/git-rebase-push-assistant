@@ -23,7 +23,12 @@ class GitRebaseSettings : PersistentStateComponent<GitRebaseSettings.State> {
         // 用户偏好
         var defaultTargetBranch: String = "develop",
         var useAutoStash: Boolean = true,
-        var notifyOnSuccess: Boolean = true
+        var notifyOnSuccess: Boolean = true,
+
+        // OpenAI配置
+        var openaiBaseUrl: String = "https://api.openai.com/v1",
+        var openaiModel: String = "gpt-4o-mini",
+        var openaiApiKey: String = ""
     )
 
     override fun getState(): State = myState

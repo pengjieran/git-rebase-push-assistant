@@ -161,6 +161,27 @@ class GitRebaseService(private val project: Project) {
     }
 
     /**
+     * 获取未提交的变更内容（git diff）
+     */
+    fun getDiff(repository: GitRepository): String {
+        return try {
+            val handler = GitLineHandler(project, repository.root, GitCommand.DIFF)
+            handler.addParameters("--staged")
+            val stagedResult = Git.getInstance().runCommand(handler)
+
+            val unstagedHandler = GitLineHandler(project, repository.root, GitCommand.DIFF)
+            val unstagedResult = Git.getInstance().runCommand(unstagedHandler)
+
+            val staged = if (stagedResult.success()) stagedResult.output.joinToString("\n") else ""
+            val unstaged = if (unstagedResult.success()) unstagedResult.output.joinToString("\n") else ""
+
+            (staged + "\n" + unstaged).trim()
+        } catch (e: Exception) {
+            ""
+        }
+    }
+
+    /**
      * 执行完整的变基流程
      */
     fun executeRebaseWorkflow(

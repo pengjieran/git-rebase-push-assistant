@@ -41,6 +41,9 @@
         <toolWindow id="MyToolWindow" factoryClass="com.examplecn.GitPluginWindowFactory"
                     icon="AllIcons.Toolwindows.ToolWindowPalette"/>
         <notificationGroup id="Git Rebase Plugin" displayType="BALLOON"/>
+        <projectConfigurable parentId="tools" instance="com.examplecn.config.GitRebaseSettingsConfigurable"
+                             id="com.examplecn.config.GitRebaseSettingsConfigurable"
+                             displayName="Git Rebase &amp; Push"/>
     </extensions>
 
     <!-- Actions -->

@@ -23,6 +23,14 @@ Requires JDK 17+. Target platform is IntelliJ IDEA 2025.3.5, declared via `intel
 
 The project compiles and builds successfully.
 
+**OpenAI Integration Implemented** — The plugin now supports AI-powered commit message generation:
+- New settings page under `Tools > Git Rebase & Push` for configuring OpenAI API (Base URL, Model ID, API Key)
+- "AI生成" button in the rebase dialog's commit message section
+- Automatically generates commit messages based on changed files and git diff content
+- Test connection button to verify API configuration
+- Uses pure JDK HttpURLConnection with manual JSON construction/parsing (no external dependencies)
+- Prompts configured for Chinese commit message generation following best practices
+
 **GitLab MR Auto-creation Implemented** — The plugin now supports automatic Merge Request creation via GitLab API:
 - When the user checks "推送后自动提交merge请求" in the rebase dialog, the plugin attempts to create an MR automatically
 - On first use, prompts for a GitLab Personal Access Token (requires `api` scope)
