@@ -17,6 +17,8 @@
     • Auto-rebase current branch onto target branch
     • Smart commit and force-push with lease
     • Auto-create merge requests (GitLab/GitHub)
+    • AI-powered commit message generation (OpenAI integration)
+    • Arthas hotfix script generator for Java hot-patching
     • Webhook integration support
     • JIRA ticket integration
 
@@ -24,6 +26,8 @@
     • 自动变基当前分支到目标分支
     • 智能提交和安全强制推送
     • 自动创建合并请求（GitLab/GitHub）
+    • AI 智能生成提交信息（OpenAI 集成）
+    • Arthas 热修复脚本生成器，用于 Java 热补丁
     • Webhook 集成支持
     • JIRA 工单集成
     ]]></description>
@@ -52,6 +56,14 @@
                 class="com.examplecn.action.GitRebaseAndPushAction"
                 icon="AllIcons.Vcs.Push">
             <add-to-group group-id="Vcs.CommitExecutor.Actions" anchor="last"/>
+        </action>
+        <action id="ArthasHotfix"
+                class="com.examplecn.action.ArthasHotfixAction"
+                icon="AllIcons.Actions.Execute"
+                text="Generate Arthas Hotfix Script"
+                description="Generate Arthas hotfix script from compiled .class files">
+            <add-to-group group-id="ToolsMenu" anchor="last"/>
+            <add-to-group group-id="ProjectViewPopupMenu" anchor="last"/>
         </action>
     </actions>
 
