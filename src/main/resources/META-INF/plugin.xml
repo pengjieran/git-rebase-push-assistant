@@ -8,7 +8,7 @@
     <name>Git Rebase and Push Assistant</name>
 
     <!-- A displayed Vendor name or Organization ID displayed on the Plugins Page. -->
-    <vendor url="https://www.examplecn.com">yonyou</vendor>
+    <vendor email="pengjieran@gmail.com" url="https://www.examplecn.com">yonyou</vendor>
 
     <!-- Description of the plugin displayed on the Plugin Page and IDE Plugin Manager.
          Guidelines: https://plugins.jetbrains.com/docs/marketplace/best-practices-for-listing.html#plugin-description -->
@@ -70,6 +70,22 @@
       <li>IntelliJ IDEA 2025.3.5+</li>
       <li>JDK 17+</li>
     </ul>
+
+    <h3>💬 Feedback & Feature Requests</h3>
+    <p>Your feedback helps make this plugin better! Feel free to:</p>
+    <ul>
+      <li><b>Email</b>: <a href="mailto:pengjieran@gmail.com">pengjieran@gmail.com</a></li>
+      <li><b>GitHub Issues</b>: Report bugs or request new features</li>
+    </ul>
+    <p>We welcome all suggestions and feature requests. Don't hesitate to reach out!</p>
+
+    <h3>💬 反馈与功能建议</h3>
+    <p>您的反馈能帮助我们持续改进！欢迎通过以下方式联系：</p>
+    <ul>
+      <li><b>邮箱</b>: <a href="mailto:pengjieran@gmail.com">pengjieran@gmail.com</a></li>
+      <li><b>GitHub Issues</b>: 报告问题或提出新功能建议</li>
+    </ul>
+    <p>我们热烈欢迎所有建议和功能需求，请随时与我联系！</p>
     ]]></description>
 
     <!-- Product and plugin compatibility requirements.
