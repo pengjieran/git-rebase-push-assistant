@@ -234,7 +234,7 @@ Ctrl+Alt+A (Windows/Linux)
 
 - [Arthas 官方文档](https://arthas.aliyun.com/)
 - [Arthas GitHub](https://github.com/alibaba/arthas)
-- [插件项目主页](https://github.com/yonyou/git-plugin)
+- [插件项目主页](https://github.com/pengjieran/git-plugin)
 
 ---
 

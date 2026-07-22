@@ -8,7 +8,7 @@
     <name>Git Rebase and Push Assistant</name>
 
     <!-- A displayed Vendor name or Organization ID displayed on the Plugins Page. -->
-    <vendor email="pengjieran@gmail.com" url="https://www.examplecn.com">yonyou</vendor>
+    <vendor email="pengjieran@gmail.com" url="https://www.examplecn.com">examplecn</vendor>
 
     <!-- Description of the plugin displayed on the Plugin Page and IDE Plugin Manager.
          Guidelines: https://plugins.jetbrains.com/docs/marketplace/best-practices-for-listing.html#plugin-description -->
