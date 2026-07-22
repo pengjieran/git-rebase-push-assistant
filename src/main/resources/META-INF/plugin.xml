@@ -1,7 +1,7 @@
 <!-- Plugin Configuration File. Read more: https://plugins.jetbrains.com/docs/intellij/plugin-configuration-file.html -->
 <idea-plugin>
     <!-- Unique identifier of the plugin. It should be FQN. It cannot be changed between the plugin versions. -->
-    <id>com.examplecn.git-rebase-push-assistant</id>
+    <id>io.github.pengjran.git-rebase-push-assistant</id>
 
     <!-- Public plugin name should be written in Title Case.
      Guidelines: https://plugins.jetbrains.com/docs/marketplace/best-practices-for-listing.html#plugin-name -->
@@ -102,7 +102,7 @@
                     icon="AllIcons.Toolwindows.ToolWindowPalette"/>
         <notificationGroup id="Git Rebase Plugin" displayType="BALLOON"/>
         <projectConfigurable parentId="tools" instance="com.examplecn.config.GitRebaseSettingsConfigurable"
-                             id="com.examplecn.config.GitRebaseSettingsConfigurable"
+                             id="io.github.pengjran.config.GitRebaseSettingsConfigurable"
                              displayName="Git Rebase &amp; Push"/>
     </extensions>
 
