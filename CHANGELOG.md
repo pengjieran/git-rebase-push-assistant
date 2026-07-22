@@ -25,12 +25,14 @@
 - 🎨 **简化 Arthas 操作**: 直接使用 IDE 选中的 `.class` 文件，无需额外对话框
 - 🎨 **统一用户界面**: 变基对话框集成所有配置和进度显示
 - 🎨 **批量处理支持**: Arthas 脚本生成支持同时处理多个文件
+- 🎨 **规范化命名空间**: 更新插件 ID 及配置项为统一的 `com.examplecn` 命名空间
 - 🔒 **安全存储**: GitLab Token 使用系统密钥链存储
 - 🔒 **智能 URL 解析**: 支持 SSH/HTTPS 格式及 GitLab 子组
 
 ### 修复
 - 🐛 **EDT 线程安全**: 所有 Git 操作用 `runReadAction`/`runWriteAction` 包裹
 - 🐛 **远程仓库解析**: 修复 GitLab 远程 URL 解析问题
+- 🐛 **文件删除处理**: 修复删除文件时的 `git add` 错误，正确使用 `git add -A` 处理所有变更
 
 ### 技术栈
 - **平台**: IntelliJ Platform 2025.3.5
