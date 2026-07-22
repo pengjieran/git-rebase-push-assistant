@@ -1,121 +1,119 @@
-# 新功能发布：OpenAI 智能提交信息生成
+# 发布说明
 
-## 🎉 更新内容
+## v1.0.0 - 首次正式发布 (2026-07-22)
 
-本次更新为 Git Rebase & Push 插件添加了 AI 驱动的提交信息自动生成功能。
+### 🎉 核心功能
 
-## ✨ 核心功能
+#### 1. 智能变基与推送
+一键完成 Git 工作流，自动处理 fetch、rebase 和 push 操作。
 
-### 1. 配置界面
-- 在 `Settings → Tools → Git Rebase & Push` 中配置
-- 支持配置 OpenAI Base URL、模型 ID 和 API Key
-- 内置连接测试功能
+**特性**：
+- ✅ 自动提交变更文件
+- ✅ 安全推送（`--force-with-lease`）
+- ✅ 智能分支建议
+- ✅ 实时进度显示
 
-### 2. AI 生成按钮
-- 在变基对话框的提交信息区域新增"AI生成"按钮
-- 一键根据代码变更自动生成提交信息
-- 智能分析变更内容，生成符合规范的中文提交信息
+#### 2. AI 提交消息生成
+集成 OpenAI API，智能生成规范的提交消息。
 
-### 3. 兼容性
-- 支持 OpenAI 官方 API
-- 支持 Azure OpenAI
-- 支持所有 OpenAI 兼容的第三方服务
-- 无需外部依赖，使用纯 JDK 实现
+**特性**：
+- ✅ 基于文件变更和 git diff 自动生成
+- ✅ 支持自定义 API（OpenAI/Azure/本地模型）
+- ✅ 一键测试连接
+- ✅ 中文提交消息优化
 
-## 🚀 快速开始
+**配置示例**：
+```properties
+# OpenAI 官方
+Base URL: https://api.openai.com/v1
+Model ID: gpt-4
+API Key: sk-...
 
-### 第一步：配置
+# Azure OpenAI
+Base URL: https://your-resource.openai.azure.com/openai/deployments/your-deployment
+Model ID: gpt-4
+API Key: your-azure-key
 
-1. 打开 IntelliJ IDEA
-2. 进入 `Settings/Preferences → Tools → Git Rebase & Push`
-3. 填写配置：
-   ```
-   Base URL: https://api.openai.com/v1
-   模型ID: gpt-4o-mini
-   API Key: sk-your-api-key
-   ```
-4. 点击"测试连接"验证
-
-### 第二步：使用
-
-1. 修改代码
-2. 打开 Git 提交界面，点击"变基并提交推送"
-3. 在对话框中点击"AI生成"按钮（带灯泡图标）
-4. 等待 AI 生成提交信息
-5. 根据需要微调，然后提交
-
-## 📁 文件结构
-
-```
-src/main/kotlin/com/examplecn/
-├── config/
-│   ├── GitRebaseSettings.kt                    # 扩展：新增 OpenAI 配置字段
-│   └── GitRebaseSettingsConfigurable.kt        # 新增：配置界面
-├── service/
-│   ├── GitRebaseService.kt                     # 扩展：新增 getDiff() 方法
-│   └── OpenAIService.kt                        # 新增：OpenAI API 调用服务
-└── action/
-    └── UnifiedRebaseDialog.kt                  # 扩展：新增 AI 生成按钮
+# 本地模型（Ollama）
+Base URL: http://localhost:11434/v1
+Model ID: qwen:7b
+API Key: (留空)
 ```
 
-## 📚 文档
+#### 3. Arthas 热修复脚本
+为编译后的 Java 类文件生成 Arthas 热修复脚本。
 
-- [功能详细说明](OPENAI_FEATURE.md)
-- [配置示例](OPENAI_CONFIG_EXAMPLES.md)
+**特性**：
+- ✅ Base64 编码类文件
+- ✅ 生成完整的 shell 脚本
+- ✅ 支持批量处理
+- ✅ 复制到剪贴板或保存为文件
 
-## 🔧 技术实现
+**使用方法**：
+1. 在项目视图选中 `.class` 文件
+2. 右键 → "Generate Arthas Hotfix Script"
+3. 选择复制或保存
 
-- **HTTP 客户端**: `java.net.HttpURLConnection`（纯 JDK，无外部依赖）
-- **JSON 处理**: 手动构建和正则解析（避免引入 JSON 库）
-- **线程模型**: 后台线程调用 API，UI 线程更新界面
-- **错误处理**: 完整的异常捕获和用户友好的错误提示
+#### 4. GitLab 集成
+自动创建 Merge Request。
 
-## 💰 成本
+**特性**：
+- ✅ 推送后自动创建 MR
+- ✅ Token 安全存储（系统密钥链）
+- ✅ 支持 SSH/HTTPS 远程仓库
+- ✅ 支持 GitLab 子组
 
-使用 `gpt-4o-mini` 模型：
-- 单次生成：< $0.001（不到 1 美分）
-- 月度成本（每天 20 次）：约 $0.38
+### 📋 系统要求
 
-非常经济实惠！
+- **IDE**: IntelliJ IDEA 2025.3.5+
+- **JDK**: 17+
+- **操作系统**: macOS / Windows / Linux
 
-## 🛡️ 安全性
+### 📥 安装
 
-- API Key 存储在项目配置文件中
-- 配置界面使用密码框遮蔽显示
-- 建议：添加到 `.gitignore` 避免泄露
+```bash
+# 构建插件
+./gradlew buildPlugin
 
-## ⚡ 性能
+# 生成位置
+build/distributions/git-plugin-1.0.0.zip
+```
 
-- 异步调用，不阻塞 UI
-- 典型响应时间：2-5 秒
-- diff 内容截断至 4000 字符以控制成本
+在 IDEA 中：
+1. `Preferences/Settings` → `Plugins`
+2. ⚙️ → `Install Plugin from Disk...`
+3. 选择 ZIP 文件并重启
 
-## 🐛 已知问题
+### 🔧 配置
 
-无
+#### OpenAI API
+`Settings` → `Tools` → `Git Rebase & Push`
 
-## 📝 后续计划
+配置 Base URL、Model ID 和 API Key，然后点击"测试连接"验证。
 
-1. 使用 `PasswordSafe` 安全存储 API Key
-2. 支持自定义 Prompt 模板
-3. 支持多语言提交信息
-4. 添加生成历史记录
-5. 支持流式响应
+#### GitLab Token
+首次创建 MR 时会提示输入 Personal Access Token（需要 `api` 权限）。
+Token 将安全存储在系统密钥链中。
 
-## 🤝 贡献
+### 🐛 已知问题
 
-欢迎提交 Issue 和 Pull Request！
+- ⚠️ 多仓库项目仅操作第一个仓库
+- ⚠️ GitHub PR 自动创建尚未实现
+- ⚠️ 不支持交互式 rebase（`-i`）
 
-## 📄 许可
+### 📚 文档
 
-与主项目相同
+- [English README](README.md)
+- [中文文档](README_CN.md)
+- [更新日志](CHANGELOG.md)
 
-## 📞 联系
+### 🙏 致谢
 
-有问题或建议？请在 Issues 中反馈。
+感谢所有贡献者和开源项目：
+- [IntelliJ Platform SDK](https://plugins.jetbrains.com/docs/intellij)
+- [Git4Idea](https://github.com/JetBrains/intellij-community/tree/master/plugins/git4idea)
+- [Arthas](https://arthas.aliyun.com/)
 
 ---
 
-**版本**: v1.1.0 (OpenAI Integration)  
-**日期**: 2026-07-21  
-**构建状态**: ✅ 通过
+**注意**: 详细的变更记录请查看 [CHANGELOG.md](CHANGELOG.md)

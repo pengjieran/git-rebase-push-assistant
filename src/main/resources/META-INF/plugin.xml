@@ -1,35 +1,75 @@
 <!-- Plugin Configuration File. Read more: https://plugins.jetbrains.com/docs/intellij/plugin-configuration-file.html -->
 <idea-plugin>
     <!-- Unique identifier of the plugin. It should be FQN. It cannot be changed between the plugin versions. -->
-    <id>com.yonyoucloud.git-rebase-push-assistant</id>
+    <id>com.examplecn.git-rebase-push-assistant</id>
 
     <!-- Public plugin name should be written in Title Case.
      Guidelines: https://plugins.jetbrains.com/docs/marketplace/best-practices-for-listing.html#plugin-name -->
     <name>Git Rebase and Push Assistant</name>
 
     <!-- A displayed Vendor name or Organization ID displayed on the Plugins Page. -->
-    <vendor url="https://www.yonyoucloud.com">yonyou</vendor>
+    <vendor url="https://www.examplecn.com">yonyou</vendor>
 
     <!-- Description of the plugin displayed on the Plugin Page and IDE Plugin Manager.
          Guidelines: https://plugins.jetbrains.com/docs/marketplace/best-practices-for-listing.html#plugin-description -->
     <description><![CDATA[
-    Automates Git rebase and push workflows with one-click operations. Features include:
-    • Auto-rebase current branch onto target branch
-    • Smart commit and force-push with lease
-    • Auto-create merge requests (GitLab/GitHub)
-    • AI-powered commit message generation (OpenAI integration)
-    • Arthas hotfix script generator for Java hot-patching
-    • Webhook integration support
-    • JIRA ticket integration
+    <h2>Git Rebase and Push Assistant</h2>
+    <p>Streamline your Git workflow with one-click automation for rebase, commit, and push operations.</p>
 
-    一键自动化 Git 变基和推送工作流。功能包括：
-    • 自动变基当前分支到目标分支
-    • 智能提交和安全强制推送
-    • 自动创建合并请求（GitLab/GitHub）
-    • AI 智能生成提交信息（OpenAI 集成）
-    • Arthas 热修复脚本生成器，用于 Java 热补丁
-    • Webhook 集成支持
-    • JIRA 工单集成
+    <h3>✨ Key Features</h3>
+    <ul>
+      <li><b>Smart Rebase & Push</b> - Automated fetch → rebase → force-push with lease workflow</li>
+      <li><b>AI Commit Messages</b> - Generate conventional commit messages using OpenAI API (supports custom endpoints)</li>
+      <li><b>GitLab Integration</b> - Auto-create merge requests after push with secure token storage</li>
+      <li><b>Arthas Hotfix Generator</b> - Generate Base64-encoded hot-patching scripts for Java classes</li>
+      <li><b>Safe Force Push</b> - Uses <code>--force-with-lease</code> to prevent overwriting others' work</li>
+      <li><b>Real-time Progress</b> - Unified dialog with inline progress display</li>
+      <li><b>Full i18n Support</b> - Complete English and Chinese localization</li>
+    </ul>
+
+    <h3>🚀 Quick Start</h3>
+    <ol>
+      <li>Configure OpenAI API in <b>Settings → Tools → Git Rebase & Push</b></li>
+      <li>In Git commit dialog, click <b>"变基并提交推送"</b> action</li>
+      <li>Select target branch and let AI generate your commit message</li>
+      <li>Optionally enable auto-MR creation</li>
+    </ol>
+
+    <h3>🔧 System Requirements</h3>
+    <ul>
+      <li>IntelliJ IDEA 2025.3.5+</li>
+      <li>JDK 17+</li>
+    </ul>
+
+    <hr/>
+
+    <h2>Git 变基推送助手</h2>
+    <p>一键自动化 Git 变基、提交和推送操作，提升开发效率。</p>
+
+    <h3>✨ 核心功能</h3>
+    <ul>
+      <li><b>智能变基与推送</b> - 自动化 fetch → rebase → force-push 全流程</li>
+      <li><b>AI 提交消息</b> - 使用 OpenAI API 生成规范提交消息（支持自定义端点）</li>
+      <li><b>GitLab 集成</b> - 推送后自动创建 Merge Request，Token 安全存储</li>
+      <li><b>Arthas 热修复</b> - 为 Java 类生成 Base64 编码的热修复脚本</li>
+      <li><b>安全强制推送</b> - 使用 <code>--force-with-lease</code> 防止覆盖他人提交</li>
+      <li><b>实时进度显示</b> - 统一对话框展示操作进度</li>
+      <li><b>完整国际化</b> - 完整的中英文界面支持</li>
+    </ul>
+
+    <h3>🚀 快速开始</h3>
+    <ol>
+      <li>在 <b>Settings → Tools → Git Rebase & Push</b> 配置 OpenAI API</li>
+      <li>在 Git 提交对话框点击 <b>"变基并提交推送"</b> 操作</li>
+      <li>选择目标分支，让 AI 生成提交消息</li>
+      <li>可选启用自动创建 MR</li>
+    </ol>
+
+    <h3>🔧 系统要求</h3>
+    <ul>
+      <li>IntelliJ IDEA 2025.3.5+</li>
+      <li>JDK 17+</li>
+    </ul>
     ]]></description>
 
     <!-- Product and plugin compatibility requirements.
@@ -59,9 +99,7 @@
         </action>
         <action id="ArthasHotfix"
                 class="com.examplecn.action.ArthasHotfixAction"
-                icon="AllIcons.Actions.Execute"
-                text="Generate Arthas Hotfix Script"
-                description="Generate Arthas hotfix script from compiled .class files">
+                icon="AllIcons.Actions.Execute">
             <add-to-group group-id="ToolsMenu" anchor="last"/>
             <add-to-group group-id="ProjectViewPopupMenu" anchor="last"/>
         </action>

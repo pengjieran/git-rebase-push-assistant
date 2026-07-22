@@ -13,6 +13,8 @@ import java.awt.BorderLayout
 import java.awt.Dimension
 import java.awt.datatransfer.StringSelection
 import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
 import javax.swing.*
 import kotlin.io.path.writeText
 
@@ -22,7 +24,8 @@ import kotlin.io.path.writeText
 class ArthasScriptOutputDialog(
     private val project: Project,
     private val className: String,
-    private val scriptContent: String
+    private val scriptContent: String,
+    private val classFile: File
 ) : DialogWrapper(project) {
 
     private val scriptTextArea = JTextArea()
@@ -44,9 +47,26 @@ class ArthasScriptOutputDialog(
         val panel = JPanel(BorderLayout(0, 10))
         panel.preferredSize = Dimension(700, 400)
 
-        // Info label
+        // Top panel with file info
+        val topPanel = JPanel()
+        topPanel.layout = BoxLayout(topPanel, BoxLayout.Y_AXIS)
+
+        // Class name info
         val infoLabel = JBLabel(GitRebaseBundle.message("arthas.output.dialog.info", className))
-        panel.add(infoLabel, BorderLayout.NORTH)
+        topPanel.add(infoLabel)
+
+        // File path
+        val pathLabel = JBLabel(GitRebaseBundle.message("arthas.output.file.path") + " " + classFile.absolutePath)
+        pathLabel.border = BorderFactory.createEmptyBorder(5, 0, 0, 0)
+        topPanel.add(pathLabel)
+
+        // Last modified time
+        val modifiedTime = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(java.util.Date(classFile.lastModified()))
+        val modifiedLabel = JBLabel(GitRebaseBundle.message("arthas.output.file.modified") + " " + modifiedTime)
+        modifiedLabel.border = BorderFactory.createEmptyBorder(5, 0, 0, 0)
+        topPanel.add(modifiedLabel)
+
+        panel.add(topPanel, BorderLayout.NORTH)
 
         // Script content
         val scrollPane = JBScrollPane(scriptTextArea)

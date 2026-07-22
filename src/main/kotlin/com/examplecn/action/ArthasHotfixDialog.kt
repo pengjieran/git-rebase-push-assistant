@@ -31,6 +31,7 @@ class ArthasHotfixDialog(private val project: Project) : DialogWrapper(project) 
         init()
         setupUI()
         loadDefaultDirectories()
+        updateOKActionState()
     }
 
     private fun setupUI() {
@@ -56,9 +57,14 @@ class ArthasHotfixDialog(private val project: Project) : DialogWrapper(project) 
         // Setup table
         classTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION)
         classTable.selectionModel.addListSelectionListener {
-            if (!it.valueIsAdjusting && classTable.selectedRow >= 0) {
-                val selectedPath = tableModel.getValueAt(classTable.selectedRow, 1) as String
-                selectedClassFile = File(selectedPath)
+            if (!it.valueIsAdjusting) {
+                if (classTable.selectedRow >= 0) {
+                    val selectedPath = tableModel.getValueAt(classTable.selectedRow, 1) as String
+                    selectedClassFile = File(selectedPath)
+                } else {
+                    selectedClassFile = null
+                }
+                updateOKActionState()
             }
         }
     }
@@ -175,6 +181,10 @@ class ArthasHotfixDialog(private val project: Project) : DialogWrapper(project) 
             bytes < 1024 * 1024 -> "${bytes / 1024} KB"
             else -> "${bytes / (1024 * 1024)} MB"
         }
+    }
+
+    private fun updateOKActionState() {
+        isOKActionEnabled = selectedClassFile != null
     }
 
     override fun doOKAction() {
