@@ -119,6 +119,7 @@ class GitRebaseService(private val project: Project) {
     /**
      * 添加文件到暂存区
      * 使用 -A 参数以正确处理删除的文件
+     * 对于删除的文件，不传递文件路径，让 git add -A 自动检测所有变更
      */
     fun addFiles(repository: GitRepository, files: List<String>) {
         if (files.isEmpty()) {
@@ -126,9 +127,8 @@ class GitRebaseService(private val project: Project) {
         }
 
         val handler = GitLineHandler(project, repository.root, GitCommand.ADD)
-        // 使用 -A 参数可以处理新增、修改和删除的文件
-        handler.addParameters("-A")
-        handler.addParameters(files)
+        // 使用 -A 参数并指定 "." 来处理所有类型的变更（新增、修改、删除）
+        handler.addParameters("-A", ".")
         val result = Git.getInstance().runCommand(handler)
 
         if (!result.success()) {

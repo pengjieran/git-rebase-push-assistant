@@ -1,19 +1,44 @@
-<!-- Keep a Changelog guide -> https://keepachangelog.com -->
+# 更新日志
 
-# Git-plugin Changelog
+所有项目的重要变更都将记录在此文件中。
+
+格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，
+版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
 ## [Unreleased]
 
-## [1.0.0] - 2026-07-17
+## [1.0.0] - 2026-07-22
 
-### Added
-- 一键变基并推送:自动 fetch 目标分支、rebase、force-push (带 `--force-with-lease` 保护)
-- 自动创建 GitLab Merge Request(首次使用提示输入 Personal Access Token,安全存储到系统凭据管理器)
-- 支持 JIRA 号和 webhook 标记自动集成到 commit message
-- 统一对话框:集成目标分支选择、文件列表、commit message 输入和进度显示
-- 自动关闭:操作完成 2 秒后自动关闭对话框
-- 用户偏好持久化:默认目标分支、autostash 选项、成功通知开关
+### 新增功能
+- ✨ **智能变基与推送**: 一键完成 fetch → rebase → push 全流程
+- ✨ **AI 提交消息生成**: 基于 OpenAI API 自动生成规范的提交消息
+- ✨ **Arthas 热修复脚本**: 为 `.class` 文件生成 Arthas 热修复脚本（Base64 编码）
+- ✨ **GitLab MR 自动创建**: 推送后自动创建 Merge Request
+- ✨ **安全推送**: 使用 `--force-with-lease` 防止覆盖他人提交
+- ✨ **国际化支持**: 完整的中英文界面
+- ✨ **自动提交变更**: 变基前自动提交所有变更文件
+- ✨ **智能分支建议**: 自动识别并推荐 master/main/develop 分支
+- ✨ **实时进度显示**: 统一对话框显示操作进度
+- ✨ **配置持久化**: 保存用户偏好（默认分支、自动 stash、通知设置）
 
-### Fixed
-- EDT 线程安全:所有 Git 操作都用 `runReadAction`/`runWriteAction` 包裹,避免线程冲突
-- GitLab 远程 URL 解析支持 SSH/HTTPS 格式及 subgroup 路径
+### 改进
+- 🎨 **简化 Arthas 操作**: 直接使用 IDE 选中的 `.class` 文件，无需额外对话框
+- 🎨 **统一用户界面**: 变基对话框集成所有配置和进度显示
+- 🎨 **批量处理支持**: Arthas 脚本生成支持同时处理多个文件
+- 🔒 **安全存储**: GitLab Token 使用系统密钥链存储
+- 🔒 **智能 URL 解析**: 支持 SSH/HTTPS 格式及 GitLab 子组
+
+### 修复
+- 🐛 **EDT 线程安全**: 所有 Git 操作用 `runReadAction`/`runWriteAction` 包裹
+- 🐛 **远程仓库解析**: 修复 GitLab 远程 URL 解析问题
+
+### 技术栈
+- **平台**: IntelliJ Platform 2025.3.5
+- **语言**: Kotlin 1.9+
+- **构建**: Gradle 8.x
+- **JDK**: 17+
+
+### 已知限制
+- ⚠️ 多仓库项目仅操作第一个仓库
+- ⚠️ GitHub PR 自动创建尚未实现
+- ⚠️ 不支持交互式 rebase (`-i`)

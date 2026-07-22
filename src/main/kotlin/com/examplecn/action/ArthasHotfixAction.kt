@@ -1,0 +1,149 @@
+package com.examplecn.action
+
+import com.examplecn.bundle.GitRebaseBundle
+import com.intellij.openapi.actionSystem.AnAction
+import com.intellij.openapi.actionSystem.AnActionEvent
+import com.intellij.openapi.actionSystem.CommonDataKeys
+import com.intellij.openapi.project.Project
+import com.intellij.openapi.ui.Messages
+import com.intellij.openapi.vfs.VirtualFile
+import java.io.File
+
+/**
+ * Action to generate Arthas hotfix scripts from compiled .class files
+ * Supports selecting .java/.kt source files (will find corresponding .class) or .class files directly
+ */
+class ArthasHotfixAction : AnAction() {
+
+    override fun update(e: AnActionEvent) {
+        val project = e.project
+
+        // Set text and description from resource bundle
+        e.presentation.text = GitRebaseBundle.message("arthas.action.name")
+        e.presentation.description = GitRebaseBundle.message("arthas.action.description")
+
+        // Always enabled when project exists
+        e.presentation.isVisible = project != null
+        e.presentation.isEnabled = project != null
+    }
+
+    override fun actionPerformed(e: AnActionEvent) {
+        val project = e.project ?: return
+        val selectedFiles = e.getData(CommonDataKeys.VIRTUAL_FILE_ARRAY) ?: return
+
+        // Filter to valid files (Java/Kotlin source or .class files)
+        val validFiles = selectedFiles.filter {
+            !it.isDirectory && (it.extension == "class" || it.extension == "java" || it.extension == "kt")
+        }
+
+        if (validFiles.isEmpty()) {
+            Messages.showWarningDialog(
+                project,
+                GitRebaseBundle.message("arthas.error.no.valid.file.selected"),
+                GitRebaseBundle.message("error.title")
+            )
+            return
+        }
+
+        val errors = mutableListOf<String>()
+        var successCount = 0
+
+        // Process each selected file
+        validFiles.forEach { virtualFile ->
+            try {
+                val classFile = when (virtualFile.extension) {
+                    "class" -> File(virtualFile.path)
+                    "java", "kt" -> findCompiledClassFile(project, virtualFile)
+                    else -> null
+                }
+
+                if (classFile == null) {
+                    errors.add("${virtualFile.name}: Could not find compiled .class file")
+                } else if (!classFile.exists()) {
+                    errors.add("${virtualFile.name}: Compiled class not found at ${classFile.path}")
+                } else {
+                    generateHotfixScript(project, classFile)
+                    successCount++
+                }
+            } catch (ex: Exception) {
+                errors.add("${virtualFile.name}: ${ex.message ?: "Unknown error"}")
+            }
+        }
+
+        // Show summary if there were errors
+        if (errors.isNotEmpty()) {
+            val message = buildString {
+                if (successCount > 0) {
+                    append("Successfully generated $successCount script(s).\n\n")
+                }
+                append("Errors:\n")
+                errors.forEach { append("• $it\n") }
+                if (successCount == 0) {
+                    append("\nTip: Make sure the project is built first (Build → Build Project)")
+                }
+            }
+            Messages.showWarningDialog(project, message, GitRebaseBundle.message("error.title"))
+        }
+    }
+
+    /**
+     * Find the compiled .class file for a given source file (.java or .kt)
+     * Searches in common output directories: target/classes (Maven), build/classes (Gradle), out/production
+     */
+    private fun findCompiledClassFile(project: Project, sourceFile: VirtualFile): File? {
+        val basePath = project.basePath ?: return null
+        val fileName = sourceFile.nameWithoutExtension
+
+        // Try to extract package path from source file
+        val sourceContent = try {
+            String(sourceFile.contentsToByteArray())
+        } catch (e: Exception) {
+            return null
+        }
+
+        val packagePath = extractPackagePath(sourceContent)
+
+        // Common output directories to search
+        val searchPaths = listOf(
+            "target/classes",           // Maven
+            "build/classes/java/main",  // Gradle (Java)
+            "build/classes/kotlin/main", // Gradle (Kotlin)
+            "out/production/${project.name}", // IntelliJ default
+            "out/production/classes"    // Alternative IntelliJ
+        )
+
+        for (searchPath in searchPaths) {
+            val classFilePath = if (packagePath.isNotEmpty()) {
+                "$basePath/$searchPath/$packagePath/$fileName.class"
+            } else {
+                "$basePath/$searchPath/$fileName.class"
+            }
+
+            val classFile = File(classFilePath)
+            if (classFile.exists()) {
+                return classFile
+            }
+        }
+
+        return null
+    }
+
+    /**
+     * Extract package path from Java/Kotlin source file
+     * Example: "package com.example.foo" → "com/example/foo"
+     */
+    private fun extractPackagePath(sourceContent: String): String {
+        val packagePattern = Regex("""package\s+([\w.]+)""")
+        val match = packagePattern.find(sourceContent)
+        return match?.groupValues?.get(1)?.replace('.', '/') ?: ""
+    }
+
+    private fun generateHotfixScript(project: Project, classFile: File) {
+        val service = project.getService(com.examplecn.service.ArthasHotfixService::class.java)
+        val scriptContent = service.generateHotfixScript(classFile)
+
+        // Show dialog with copy/save options
+        val outputDialog = ArthasScriptOutputDialog(project, classFile.nameWithoutExtension, scriptContent, classFile)
+        outputDialog.show()
+    }
+}
