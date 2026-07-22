@@ -4,7 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project overview
 
-An IntelliJ IDEA plugin (Kotlin) that adds a "变基并提交推送" (Rebase and Push) action to the Git commit UI. It fetches a target branch, rebases the current branch onto it, optionally commits selected changed files, force-pushes with `--force-with-lease`, and optionally creates a merge request.
+An IntelliJ IDEA plugin (Kotlin) with two main features:
+1. **Git Rebase & Push** — Adds a "变基并提交推送" action to the Git commit UI that automates fetch → rebase → commit → force-push (`--force-with-lease`) → optionally create GitLab MR
+2. **Arthas Hotfix Generator** — Right-click action on `.java`/`.kt`/`.class` files that generates Base64-encoded shell scripts for Alibaba Arthas hot-patching in production
 
 ## Build and development commands
 
@@ -21,47 +23,28 @@ Requires JDK 17+. Target platform is IntelliJ IDEA 2025.3.5, declared via `intel
 
 ## Build status
 
-The project compiles and builds successfully.
+The project compiles and builds successfully. `src/test/kotlin` is empty — no tests exist yet.
 
-**OpenAI Integration Implemented** — The plugin now supports AI-powered commit message generation:
-- New settings page under `Tools > Git Rebase & Push` for configuring OpenAI API (Base URL, Model ID, API Key)
-- "AI生成" button in the rebase dialog's commit message section
-- Automatically generates commit messages based on changed files and git diff content
-- Test connection button to verify API configuration
-- Uses pure JDK HttpURLConnection with manual JSON construction/parsing (no external dependencies)
-- Prompts configured for Chinese commit message generation following best practices
-
-**GitLab MR Auto-creation Implemented** — The plugin now supports automatic Merge Request creation via GitLab API:
-- When the user checks "推送后自动提交merge请求" in the rebase dialog, the plugin attempts to create an MR automatically
-- On first use, prompts for a GitLab Personal Access Token (requires `api` scope)
-- Token is securely stored using IntelliJ's `PasswordSafe` (system keychain/credential manager)
-- Makes HTTP POST to `/api/v4/projects/{project_path}/merge_requests` with source/target branch, title, and description
-- Parses remote URL to extract GitLab base URL and project path (supports SSH and HTTPS formats, including subgroups)
-- On success, shows the MR URL; on failure, provides a pre-filled manual creation link
-- JSON is constructed and parsed manually (no external dependencies) to avoid adding libraries
-
-**Simplified settings** — `GitRebaseSettings` stores minimal user preferences (default target branch, autostash, notify on success).
-
-**GitHub** — PR auto-creation is not yet implemented; returns a manual-creation link.
-
-Test directory (`src/test/kotlin`) is still empty.
+**GitHub PR** — auto-creation is not yet implemented; returns a manual-creation link.
 
 ## Architecture
 
-Three-layer structure under `src/main/kotlin/com/examplecn/`:
+Package root: `src/main/kotlin/com/examplecn/`
 
-- **`action/`** — UI layer. `GitRebaseAndPushAction` is the `AnAction` entry point, enabled only when the project has at least one Git repository (via `GitUtil.getRepositoryManager`). It always operates on `repositories.firstOrNull()` — multi-repo projects are not disambiguated. It shows a single `UnifiedRebaseDialog` that combines all configuration and progress display:
-  - Shows target branch selection with auto-completion
-  - Displays all changed files (always selected, cannot be deselected)
-  - Collects commit message (required if there are changes)
-  - MR/PR auto-creation checkbox
-  - After confirmation, displays progress inline at bottom of dialog (no background thread)
-  - Automatically closes 2 seconds after completion
-- **`service/`** — business logic. `GitRebaseService` (`@Service(Service.Level.PROJECT)`) wraps all Git4Idea `GitLineHandler` calls (fetch, rebase, push, status, add, commit, remote lookup) with proper IntelliJ Platform threading (read/write actions) and translates failures into `VcsException`. All Git commands must run in `runReadAction` (for read-only) or `runWriteAction` (for mutating operations) to comply with EDT threading requirements. Fetched via `project.service<GitRebaseService>()`.
-- **`config/`** — `GitRebaseSettings` (`@Service` + `PersistentStateComponent`) persists user preferences (default target branch, autostash, notify-on-success) and non-secret GitLab config (URL, project ID) to `gitRebasePlugin.xml`. The comment in the source notes that tokens are meant to go through the system credential store instead of this plain state, though no such credential-store integration exists yet.
+**`action/`** — UI entry points (two registered actions):
+- `GitRebaseAndPushAction` — surfaces in the Git commit dialog (`Vcs.CommitExecutor.Actions` group). Enabled only when the project has at least one Git repository. Always operates on `repositories.firstOrNull()` — multi-repo projects are not disambiguated. Launches `UnifiedRebaseDialog`, which combines all configuration and progress display. After the user confirms, runs all steps synchronously on the EDT: add + commit → fetch → rebase → force-push → optionally create MR. Progress text updates inline; dialog auto-closes 2 seconds after completion.
+- `ArthasHotfixAction` — surfaces in `ToolsMenu` and `ProjectViewPopupMenu`. Accepts `.java`, `.kt`, or `.class` file selections. For source files, locates the corresponding compiled `.class` by searching common output directories (`target/classes`, `build/classes/kotlin/main`, `out/production/…`). Delegates to `ArthasHotfixService`, then shows `ArthasScriptOutputDialog` with copy/save options.
 
-Control flow for the main action: `actionPerformed` → show `UnifiedRebaseDialog` → user confirms → execute all steps synchronously on EDT (add + commit → fetch → rebase → force-push → optionally create MR) with progress text updating in the dialog's bottom panel → auto-close after 2 seconds.
+**`service/`** — four project-level services (`@Service(Service.Level.PROJECT)`):
+- `GitRebaseService` — wraps all Git4Idea `GitLineHandler` calls (fetch, rebase, push, status, add, commit, remote lookup). All Git operations must run inside `runReadAction` (reads) or `runWriteAction` (mutating) to satisfy EDT threading requirements.
+- `OpenAIService` — calls the OpenAI-compatible chat completions API using `HttpURLConnection` (no external libraries). Builds the prompt from the git diff and generates a conventional commit message in Chinese.
+- `MergeRequestService` — POSTs to `/api/v4/projects/{project_path}/merge_requests`. Parses the project's remote URL (SSH and HTTPS, including subgroups) to derive the GitLab base URL and project path. GitLab Personal Access Token is stored in IntelliJ's `PasswordSafe` (system keychain).
+- `ArthasHotfixService` — reads a `.class` file, Base64-encodes it, and generates a self-contained bash script that decodes and writes the file to `/tmp` then prints the Arthas `retransform` command.
 
-**Threading model:** All Git operations are wrapped in `ApplicationManager.getApplication().runReadAction(Computable {...})` for reads or `runWriteAction(Computable {...})` for writes to ensure they execute on the Event Dispatch Thread with proper locking, preventing "Access is allowed from Event Dispatch Thread (EDT) only" errors.
+**`config/`** — `GitRebaseSettings` (`PersistentStateComponent`) persists non-secret preferences (default target branch, autostash, notify-on-success, OpenAI endpoint/model, non-secret GitLab config) to `gitRebasePlugin.xml`. `GitRebaseSettingsConfigurable` renders the settings UI under `Tools > Git Rebase & Push`.
 
-`plugin.xml` (`src/main/resources/META-INF/`) is the extension/action registration point — the action is added to the `Vcs.CommitExecutor.Actions` group, meaning it surfaces in the Git commit dialog rather than as a toolbar/menu action elsewhere.
+**`bundle/`** — `GitRebaseBundle` wraps `ResourceBundle` lookups. Message properties files live in `src/main/resources/messages/` with a `_zh_CN` variant for Chinese localization.
+
+**Threading model:** All Git operations use `ApplicationManager.getApplication().run{Read,Write}Action(Computable {...})`. The entire rebase-and-push workflow executes synchronously on the EDT — no background coroutines or `ProgressManager` tasks.
+
+**No external runtime dependencies** — JSON construction and parsing is done manually with string manipulation to avoid adding libraries to the plugin classpath.

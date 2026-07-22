@@ -4,7 +4,10 @@ import com.examplecn.bundle.GitRebaseBundle
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.CommonDataKeys
+import com.intellij.openapi.module.ModuleUtilCore
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.roots.CompilerModuleExtension
+import com.intellij.openapi.roots.ModuleRootManager
 import com.intellij.openapi.ui.Messages
 import com.intellij.openapi.vfs.VirtualFile
 import java.io.File
@@ -88,10 +91,9 @@ class ArthasHotfixAction : AnAction() {
 
     /**
      * Find the compiled .class file for a given source file (.java or .kt)
-     * Searches in common output directories: target/classes (Maven), build/classes (Gradle), out/production
+     * Supports multi-module projects by detecting the module and searching its output directories first
      */
     private fun findCompiledClassFile(project: Project, sourceFile: VirtualFile): File? {
-        val basePath = project.basePath ?: return null
         val fileName = sourceFile.nameWithoutExtension
 
         // Try to extract package path from source file
@@ -103,8 +105,57 @@ class ArthasHotfixAction : AnAction() {
 
         val packagePath = extractPackagePath(sourceContent)
 
-        // Common output directories to search
-        val searchPaths = listOf(
+        // Try to find the module that contains this source file
+        val module = ModuleUtilCore.findModuleForFile(sourceFile, project)
+
+        if (module != null) {
+            // IntelliJ's own knowledge of the module's compiled-classes output directory
+            // (read-only extension; reflects whatever build system/import set it, incl. Gradle sub-modules)
+            val compilerExtension = CompilerModuleExtension.getInstance(module)
+            val compilerOutputPath = compilerExtension?.compilerOutputPath?.path
+
+            if (compilerOutputPath != null) {
+                val classFilePath = if (packagePath.isNotEmpty()) {
+                    "$compilerOutputPath/$packagePath/$fileName.class"
+                } else {
+                    "$compilerOutputPath/$fileName.class"
+                }
+
+                val classFile = File(classFilePath)
+                if (classFile.exists()) {
+                    return classFile
+                }
+            }
+
+            // Fall back to common build output directories relative to the module's content root
+            val moduleBasePath = ModuleRootManager.getInstance(module).contentRoots.firstOrNull()?.path
+            if (moduleBasePath != null) {
+                val moduleSearchPaths = listOf(
+                    "$moduleBasePath/target/classes",              // Maven
+                    "$moduleBasePath/build/classes/java/main",     // Gradle (Java)
+                    "$moduleBasePath/build/classes/kotlin/main",   // Gradle (Kotlin)
+                    "$moduleBasePath/out/production/${module.name}", // IntelliJ
+                    "$moduleBasePath/out/production/classes"       // Alternative
+                )
+
+                for (searchPath in moduleSearchPaths) {
+                    val classFilePath = if (packagePath.isNotEmpty()) {
+                        "$searchPath/$packagePath/$fileName.class"
+                    } else {
+                        "$searchPath/$fileName.class"
+                    }
+
+                    val classFile = File(classFilePath)
+                    if (classFile.exists()) {
+                        return classFile
+                    }
+                }
+            }
+        }
+
+        // Fallback: search in project root (for single-module projects)
+        val basePath = project.basePath ?: return null
+        val projectSearchPaths = listOf(
             "target/classes",           // Maven
             "build/classes/java/main",  // Gradle (Java)
             "build/classes/kotlin/main", // Gradle (Kotlin)
@@ -112,7 +163,7 @@ class ArthasHotfixAction : AnAction() {
             "out/production/classes"    // Alternative IntelliJ
         )
 
-        for (searchPath in searchPaths) {
+        for (searchPath in projectSearchPaths) {
             val classFilePath = if (packagePath.isNotEmpty()) {
                 "$basePath/$searchPath/$packagePath/$fileName.class"
             } else {
