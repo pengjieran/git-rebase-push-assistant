@@ -103,7 +103,7 @@
         <notificationGroup id="Git Rebase Plugin" displayType="BALLOON"/>
         <projectConfigurable parentId="tools" instance="com.examplecn.config.GitRebaseSettingsConfigurable"
                              id="io.github.pengjran.config.GitRebaseSettingsConfigurable"
-                             displayName="Git Rebase &amp; Push"/>
+                             bundle="messages.GitRebaseBundle" key="settings.displayName"/>
     </extensions>
 
     <!-- Actions -->
