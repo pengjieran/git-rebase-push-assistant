@@ -1,5 +1,6 @@
 package com.examplecn.config
 
+import com.examplecn.bundle.GitRebaseBundle
 import com.examplecn.service.OpenAIService
 import com.intellij.openapi.options.Configurable
 import com.intellij.openapi.project.Project
@@ -30,7 +31,7 @@ class GitRebaseSettingsConfigurable(private val project: Project) : Configurable
         }
     }
 
-    override fun getDisplayName(): String = "Git Rebase & Push"
+    override fun getDisplayName(): String = GitRebaseBundle.message("settings.displayName")
 
     override fun createComponent(): JComponent {
         val panel = FormBuilder.createFormBuilder()
