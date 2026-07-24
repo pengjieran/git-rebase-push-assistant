@@ -42,6 +42,7 @@ class UnifiedRebaseDialog(
 
     private val branchComboBox: ComboBox<String>
     private val messageArea = JBTextArea(4, 50)
+    private val enableRebaseCheckBox: JBCheckBox
     private val createMRCheckBox: JBCheckBox
     private val aiGenerateButton: JButton
 
@@ -54,6 +55,8 @@ class UnifiedRebaseDialog(
     var commitMessage: String = ""
         private set
     var shouldCreateMR: Boolean = false
+        private set
+    var shouldRebase: Boolean = true
         private set
 
     init {
@@ -131,7 +134,15 @@ class UnifiedRebaseDialog(
             }
         }
 
+        val enableRebaseDefault = GitRebaseSettings.getInstance(project).state.enableRebase
+        enableRebaseCheckBox = JBCheckBox(GitRebaseBundle.message("option.enable.rebase"), enableRebaseDefault)
+
         createMRCheckBox = JBCheckBox(GitRebaseBundle.message("option.create.mr"), true)
+
+        // 仅当变基和提交MR都未选中时，禁用目标分支选择
+        val branchEnableListener = { updateBranchSelectorState() }
+        enableRebaseCheckBox.addItemListener { branchEnableListener() }
+        createMRCheckBox.addItemListener { branchEnableListener() }
 
         aiGenerateButton = JButton(GitRebaseBundle.message("openai.generate.button"))
         aiGenerateButton.icon = AllIcons.Actions.IntentionBulb
@@ -155,6 +166,7 @@ class UnifiedRebaseDialog(
         addAppendButton.addActionListener { appendContent() }
 
         updateAppendInputState()
+        updateBranchSelectorState()
 
         // 如果从提交框架传入了初始提交信息，则预填充
         if (!initialCommitMessage.isNullOrBlank()) {
@@ -295,11 +307,19 @@ class UnifiedRebaseDialog(
         contentPanel.add(TitledSeparator(GitRebaseBundle.message("dialog.section.options")))
         contentPanel.add(Box.createVerticalStrut(4))
 
-        val mrPanel = JPanel(BorderLayout())
-        mrPanel.border = JBUI.Borders.empty(0, 12, 0, 0)
-        mrPanel.add(createMRCheckBox, BorderLayout.WEST)
+        val optionsPanel = JPanel()
+        optionsPanel.layout = BoxLayout(optionsPanel, BoxLayout.Y_AXIS)
+        optionsPanel.border = JBUI.Borders.empty(0, 12, 0, 0)
 
-        contentPanel.add(mrPanel)
+        val rebaseRow = JPanel(BorderLayout())
+        rebaseRow.add(enableRebaseCheckBox, BorderLayout.WEST)
+        optionsPanel.add(rebaseRow)
+
+        val mrRow = JPanel(BorderLayout())
+        mrRow.add(createMRCheckBox, BorderLayout.WEST)
+        optionsPanel.add(mrRow)
+
+        contentPanel.add(optionsPanel)
 
         mainPanel.add(contentPanel, BorderLayout.CENTER)
 
@@ -307,39 +327,47 @@ class UnifiedRebaseDialog(
     }
 
     override fun doOKAction() {
+        shouldRebase = enableRebaseCheckBox.isSelected
+        shouldCreateMR = createMRCheckBox.isSelected
+
         val editor = branchComboBox.editor.editorComponent as? JTextField
         selectedBranch = (editor?.text ?: branchComboBox.selectedItem as? String ?: "").trim()
-
-        if (selectedBranch.isEmpty()) {
-            Messages.showErrorDialog(
-                project,
-                GitRebaseBundle.message("error.select.branch"),
-                GitRebaseBundle.message("error.title")
-            )
-            return
-        }
-
-        if (!branches.contains(selectedBranch)) {
-            Messages.showErrorDialog(
-                project,
-                GitRebaseBundle.message("error.branch.not.exist", selectedBranch),
-                GitRebaseBundle.message("error.title")
-            )
-            return
-        }
 
         val currentBranch = ApplicationManager.getApplication()
             .runReadAction(com.intellij.openapi.util.Computable {
                 repository.currentBranch?.name
             })
 
-        if (selectedBranch == currentBranch) {
-            Messages.showErrorDialog(
-                project,
-                GitRebaseBundle.message("error.rebase.same.branch"),
-                GitRebaseBundle.message("error.title")
-            )
-            return
+        // 目标分支仅在变基或创建MR时才需要，此时才校验
+        val branchNeeded = shouldRebase || shouldCreateMR
+        if (branchNeeded) {
+            if (selectedBranch.isEmpty()) {
+                Messages.showErrorDialog(
+                    project,
+                    GitRebaseBundle.message("error.select.branch"),
+                    GitRebaseBundle.message("error.title")
+                )
+                return
+            }
+
+            if (!branches.contains(selectedBranch)) {
+                Messages.showErrorDialog(
+                    project,
+                    GitRebaseBundle.message("error.branch.not.exist", selectedBranch),
+                    GitRebaseBundle.message("error.title")
+                )
+                return
+            }
+
+            // 变基不能以当前分支为基准；仅创建MR时允许目标分支等于当前分支的场景交由后续处理
+            if (shouldRebase && selectedBranch == currentBranch) {
+                Messages.showErrorDialog(
+                    project,
+                    GitRebaseBundle.message("error.rebase.same.branch"),
+                    GitRebaseBundle.message("error.title")
+                )
+                return
+            }
         }
 
         if (changedFiles.isNotEmpty() && messageArea.text.isBlank()) {
@@ -352,7 +380,9 @@ class UnifiedRebaseDialog(
         }
 
         commitMessage = messageArea.text.trim()
-        shouldCreateMR = createMRCheckBox.isSelected
+
+        // 持久化变基偏好
+        GitRebaseSettings.getInstance(project).state.enableRebase = shouldRebase
 
         // 立即关闭对话框，在后台执行
         super.doOKAction()
@@ -362,6 +392,16 @@ class UnifiedRebaseDialog(
 
     override fun doCancelAction() {
         super.doCancelAction()
+    }
+
+    /**
+     * 目标分支仅在需要时可用：变基需要目标分支作为变基基准，
+     * 创建MR需要目标分支作为合并目标。两者都未选中时禁用选择器。
+     */
+    private fun updateBranchSelectorState() {
+        val branchNeeded = enableRebaseCheckBox.isSelected || createMRCheckBox.isSelected
+        branchComboBox.isEnabled = branchNeeded
+        (branchComboBox.editor.editorComponent as? JTextField)?.isEnabled = branchNeeded
     }
 
     private fun requiresInput(type: String): Boolean {
@@ -421,17 +461,24 @@ class UnifiedRebaseDialog(
                             service.commitChanges(repository, commitMessage)
                         }
 
-                        indicator.text = GitRebaseBundle.message("progress.fetch.remote")
-                        indicator.text2 = GitRebaseBundle.message("progress.fetch.from.remote", selectedBranch)
-                        service.fetchRemoteBranch(repository, selectedBranch)
+                        if (shouldRebase) {
+                            indicator.text = GitRebaseBundle.message("progress.fetch.remote")
+                            indicator.text2 = GitRebaseBundle.message("progress.fetch.from.remote", selectedBranch)
+                            service.fetchRemoteBranch(repository, selectedBranch)
 
-                        indicator.text = GitRebaseBundle.message("progress.rebasing")
-                        indicator.text2 = GitRebaseBundle.message("progress.rebase.onto", currentBranch, selectedBranch)
-                        service.rebaseOnto(repository, selectedBranch)
+                            indicator.text = GitRebaseBundle.message("progress.rebasing")
+                            indicator.text2 = GitRebaseBundle.message("progress.rebase.onto", currentBranch, selectedBranch)
+                            service.rebaseOnto(repository, selectedBranch)
 
-                        indicator.text = GitRebaseBundle.message("progress.pushing")
-                        indicator.text2 = GitRebaseBundle.message("progress.force.push", currentBranch)
-                        service.forcePushBranch(repository, currentBranch)
+                            indicator.text = GitRebaseBundle.message("progress.pushing")
+                            indicator.text2 = GitRebaseBundle.message("progress.force.push", currentBranch)
+                            service.forcePushBranch(repository, currentBranch)
+                        } else {
+                            // 未变基：使用普通 push，避免误覆盖远程历史
+                            indicator.text = GitRebaseBundle.message("progress.pushing")
+                            indicator.text2 = GitRebaseBundle.message("progress.normal.push", currentBranch)
+                            service.pushBranch(repository, currentBranch)
+                        }
 
                         if (shouldCreateMR) {
                             indicator.text = GitRebaseBundle.message("progress.creating.mr")
