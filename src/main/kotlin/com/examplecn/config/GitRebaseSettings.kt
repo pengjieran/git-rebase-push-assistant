@@ -24,6 +24,8 @@ class GitRebaseSettings : PersistentStateComponent<GitRebaseSettings.State> {
         var defaultTargetBranch: String = "develop",
         var useAutoStash: Boolean = true,
         var notifyOnSuccess: Boolean = true,
+        // 是否变基到目标分支（关闭时跳过 fetch/rebase，使用普通 push）
+        var enableRebase: Boolean = true,
 
         // OpenAI配置
         var openaiBaseUrl: String = "https://api.openai.com/v1",

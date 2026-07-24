@@ -69,6 +69,33 @@ class GitRebaseService(private val project: Project) {
     }
 
     /**
+     * 普通推送当前分支（不使用 --force，避免误覆盖远程历史）
+     * 未变基时使用此方式推送。如果远程已有分支且需要设置上游，则回退带 -u 重试。
+     */
+    fun pushBranch(repository: GitRepository, branch: String) {
+        val handler = GitLineHandler(project, repository.root, GitCommand.PUSH)
+        handler.addParameters("origin", branch)
+        val result = Git.getInstance().runCommand(handler)
+
+        if (!result.success()) {
+            val errorOutput = result.errorOutputAsJoinedString
+
+            // 本地分支尚未建立上游跟踪时，带 -u 重试
+            if (errorOutput.contains("no upstream") || errorOutput.contains("--set-upstream")) {
+                val upstreamHandler = GitLineHandler(project, repository.root, GitCommand.PUSH)
+                upstreamHandler.addParameters("-u", "origin", branch)
+                val upstreamResult = Git.getInstance().runCommand(upstreamHandler)
+
+                if (!upstreamResult.success()) {
+                    throw VcsException("Push failed: ${upstreamResult.errorOutputAsJoinedString}")
+                }
+            } else {
+                throw VcsException("Push failed: $errorOutput")
+            }
+        }
+    }
+
+    /**
      * 获取所有远程分支
      */
     fun getRemoteBranches(repository: GitRepository): List<String> {
