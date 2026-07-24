@@ -39,7 +39,7 @@ Package root: `src/main/kotlin/com/examplecn/`
 - `GitRebaseService` — wraps all Git4Idea `GitLineHandler` calls (fetch, rebase, push, status, add, commit, remote lookup). All Git operations must run inside `runReadAction` (reads) or `runWriteAction` (mutating) to satisfy EDT threading requirements.
 - `OpenAIService` — calls the OpenAI-compatible chat completions API using `HttpURLConnection` (no external libraries). Builds the prompt from the git diff and generates a conventional commit message in Chinese.
 - `MergeRequestService` — POSTs to `/api/v4/projects/{project_path}/merge_requests`. Parses the project's remote URL (SSH and HTTPS, including subgroups) to derive the GitLab base URL and project path. GitLab Personal Access Token is stored in IntelliJ's `PasswordSafe` (system keychain).
-- `ArthasHotfixService` — reads a `.class` file, Base64-encodes it, and generates a self-contained bash script that decodes and writes the file to `/tmp` then prints the Arthas `retransform` command.
+- `ArthasHotfixService` — reads a `.class` file, gzip-compresses then Base64-encodes it (MIME, 76-col wrapped), and generates a self-contained bash script that decodes + `gunzip`s the file to `/tmp`, verifies it against the source SHA-256 (`sha256sum`/`shasum` fallback), then prints the Arthas `retransform` command.
 
 **`config/`** — `GitRebaseSettings` (`PersistentStateComponent`) persists non-secret preferences (default target branch, autostash, notify-on-success, OpenAI endpoint/model, non-secret GitLab config) to `gitRebasePlugin.xml`. `GitRebaseSettingsConfigurable` renders the settings UI under `Tools > Git Rebase & Push`.
 

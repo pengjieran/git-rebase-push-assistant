@@ -25,6 +25,7 @@ class ArthasScriptOutputDialog(
     private val project: Project,
     private val className: String,
     private val scriptContent: String,
+    private val clipboardContent: String,
     private val classFile: File
 ) : DialogWrapper(project) {
 
@@ -78,7 +79,7 @@ class ArthasScriptOutputDialog(
     override fun createActions(): Array<Action> {
         val copyAction = object : AbstractAction(GitRebaseBundle.message("arthas.output.copy.button")) {
             override fun actionPerformed(e: java.awt.event.ActionEvent?) {
-                CopyPasteManager.getInstance().setContents(StringSelection(scriptContent))
+                CopyPasteManager.getInstance().setContents(StringSelection(clipboardContent))
                 Messages.showInfoMessage(
                     project,
                     GitRebaseBundle.message("arthas.output.copied"),

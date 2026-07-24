@@ -1,6 +1,7 @@
 package com.examplecn.action
 
 import com.examplecn.bundle.GitRebaseBundle
+import com.intellij.openapi.actionSystem.ActionUpdateThread
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.CommonDataKeys
@@ -18,6 +19,8 @@ import java.io.File
  */
 class ArthasHotfixAction : AnAction() {
 
+    override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.BGT
+
     override fun update(e: AnActionEvent) {
         val project = e.project
 
@@ -25,9 +28,24 @@ class ArthasHotfixAction : AnAction() {
         e.presentation.text = GitRebaseBundle.message("arthas.action.name")
         e.presentation.description = GitRebaseBundle.message("arthas.action.description")
 
-        // Always enabled when project exists
-        e.presentation.isVisible = project != null
-        e.presentation.isEnabled = project != null
+        if (project == null) {
+            e.presentation.isVisible = false
+            e.presentation.isEnabled = false
+            return
+        }
+
+        // In file-context menus (editor / project view / editor tab), only show for
+        // .java/.kt/.class selections. When no file is available (e.g. Tools menu),
+        // keep it visible so it can still be triggered.
+        val selectedFiles = e.getData(CommonDataKeys.VIRTUAL_FILE_ARRAY)
+        val hasValidFile = selectedFiles?.any {
+            !it.isDirectory && (it.extension == "class" || it.extension == "java" || it.extension == "kt")
+        } ?: false
+
+        val fromToolsMenu = selectedFiles.isNullOrEmpty()
+        val show = fromToolsMenu || hasValidFile
+        e.presentation.isVisible = show
+        e.presentation.isEnabled = show
     }
 
     override fun actionPerformed(e: AnActionEvent) {
@@ -191,10 +209,18 @@ class ArthasHotfixAction : AnAction() {
 
     private fun generateHotfixScript(project: Project, classFile: File) {
         val service = project.getService(com.examplecn.service.ArthasHotfixService::class.java)
-        val scriptContent = service.generateHotfixScript(classFile)
+        val scripts = service.generateHotfixScript(classFile)
 
-        // Show dialog with copy/save options
-        val outputDialog = ArthasScriptOutputDialog(project, classFile.nameWithoutExtension, scriptContent, classFile)
+        // Show dialog with copy/save options.
+        // Display + save use the full script (with integrity checks);
+        // clipboard copy uses the simplified variant without if/verification blocks.
+        val outputDialog = ArthasScriptOutputDialog(
+            project,
+            classFile.nameWithoutExtension,
+            scripts.full,
+            scripts.clipboard,
+            classFile
+        )
         outputDialog.show()
     }
 }
