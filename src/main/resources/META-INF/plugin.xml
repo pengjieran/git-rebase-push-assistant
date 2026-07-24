@@ -30,7 +30,7 @@
     <h3>🚀 Quick Start</h3>
     <ol>
       <li>Configure OpenAI API in <b>Settings → Tools → Git Rebase & Push</b></li>
-      <li>In Git commit dialog, click <b>"变基并提交推送"</b> action</li>
+      <li>In Git commit dialog, click <b>"Rebase and Push"</b> action</li>
       <li>Select target branch and let AI generate your commit message</li>
       <li>Optionally enable auto-MR creation</li>
     </ol>
@@ -60,7 +60,7 @@
     <h3>🚀 快速开始</h3>
     <ol>
       <li>在 <b>Settings → Tools → Git Rebase & Push</b> 配置 OpenAI API</li>
-      <li>在 Git 提交对话框点击 <b>"变基并提交推送"</b> 操作</li>
+      <li>在 Git 提交对话框点击 <b>"变基并推送"</b> 操作</li>
       <li>选择目标分支，让 AI 生成提交消息</li>
       <li>可选启用自动创建 MR</li>
     </ol>
@@ -105,9 +105,8 @@
     <!-- Actions -->
     <actions>
         <action id="GitRebaseAndPush"
-                class="com.examplecn.action.GitRebaseAndPushAction"
-                icon="AllIcons.Vcs.Push">
-            <add-to-group group-id="Vcs.CommitExecutor.Actions" anchor="last"/>
+                class="com.examplecn.action.GitRebaseAndPushAction">
+            <add-to-group group-id="Vcs.Commit.PrimaryCommitActions" anchor="last"/>
         </action>
         <action id="ArthasHotfix"
                 class="com.examplecn.action.ArthasHotfixAction"
