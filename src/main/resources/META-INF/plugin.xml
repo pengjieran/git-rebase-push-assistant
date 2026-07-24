@@ -93,17 +93,13 @@
     <depends>com.intellij.modules.platform</depends>
     <depends>Git4Idea</depends>
 
-    <resource-bundle>messages.MyMessageBundle</resource-bundle>
-
     <!-- Extensions defined by the plugin.
          Read more: https://plugins.jetbrains.com/docs/intellij/plugin-extension-points.html -->
     <extensions defaultExtensionNs="com.intellij">
-        <toolWindow id="MyToolWindow" factoryClass="com.examplecn.GitPluginWindowFactory"
-                    icon="AllIcons.Toolwindows.ToolWindowPalette"/>
         <notificationGroup id="Git Rebase Plugin" displayType="BALLOON"/>
         <projectConfigurable parentId="tools" instance="com.examplecn.config.GitRebaseSettingsConfigurable"
                              id="io.github.pengjran.config.GitRebaseSettingsConfigurable"
-                             displayName="Git Rebase &amp; Push"/>
+                             bundle="messages.GitRebaseBundle" key="settings.displayName"/>
     </extensions>
 
     <!-- Actions -->

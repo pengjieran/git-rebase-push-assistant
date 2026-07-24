@@ -1,12 +1,50 @@
 <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M32.0845 7.94025V4H24.0203V7.9896H16.029V4H7.91553V7.94025H4V36H16.0044V32.0045C16.0058 30.9457 16.4274 29.9308 17.1766 29.1826C17.9258 28.4345 18.9412 28.0143 20 28.0143C21.0588 28.0143 22.0743 28.4345 22.8234 29.1826C23.5726 29.9308 23.9942 30.9457 23.9956 32.0045V36H36V7.94025H32.0845Z"
-          fill="url(#paint0_linear)"/>
-    <defs>
-        <linearGradient id="paint0_linear" x1="2.94192" y1="4.89955" x2="37.7772" y2="39.7345"
-                        gradientUnits="userSpaceOnUse">
-            <stop offset="0.15937" stop-color="#3BEA62"/>
-            <stop offset="0.5404" stop-color="#3C99CC"/>
-            <stop offset="0.93739" stop-color="#6B57FF"/>
-        </linearGradient>
-    </defs>
+  <!-- Background circle with gradient -->
+  <circle cx="20" cy="20" r="18" fill="url(#bgGradient)"/>
+
+  <!-- Git branch icon (bottom left) -->
+  <circle cx="12" cy="28" r="2.5" fill="white" opacity="0.9"/>
+
+  <!-- Git branch icon (bottom right) -->
+  <circle cx="28" cy="28" r="2.5" fill="white" opacity="0.9"/>
+
+  <!-- Git branch icon (top center - after rebase) -->
+  <circle cx="20" cy="14" r="2.5" fill="white"/>
+
+  <!-- Branch lines showing rebase -->
+  <path d="M 12 25.5 Q 12 20 20 16.5" stroke="white" stroke-width="2"
+        stroke-linecap="round" fill="none" opacity="0.8"/>
+  <path d="M 28 25.5 Q 28 20 20 16.5" stroke="white" stroke-width="2"
+        stroke-linecap="round" fill="none" opacity="0.8"/>
+
+  <!-- Push arrow pointing up -->
+  <path d="M 20 14 L 20 6" stroke="url(#arrowGradient)" stroke-width="2.5"
+        stroke-linecap="round"/>
+  <path d="M 16 9 L 20 5 L 24 9" stroke="url(#arrowGradient)" stroke-width="2.5"
+        stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+
+  <!-- Hot fix spark effect (small accent) -->
+  <path d="M 30 10 L 31 8 L 32 10 L 34 9 L 32 11 L 34 12 L 32 11 L 31 13 L 30 11 L 28 12 L 30 10 Z"
+        fill="url(#sparkGradient)" opacity="0.85"/>
+
+  <defs>
+    <!-- Background gradient: Git blue to Arthas orange -->
+    <linearGradient id="bgGradient" x1="0" y1="0" x2="40" y2="40" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#3C7EBB"/>
+      <stop offset="50%" stop-color="#5C6BC0"/>
+      <stop offset="100%" stop-color="#FF6B35"/>
+    </linearGradient>
+
+    <!-- Arrow gradient for emphasis -->
+    <linearGradient id="arrowGradient" x1="20" y1="14" x2="20" y2="5" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="100%" stop-color="#FFE9A8"/>
+    </linearGradient>
+
+    <!-- Spark gradient for Arthas hotfix accent -->
+    <linearGradient id="sparkGradient" x1="28" y1="8" x2="34" y2="13" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFD54F"/>
+      <stop offset="100%" stop-color="#FF6B35"/>
+    </linearGradient>
+  </defs>
 </svg>

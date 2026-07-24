@@ -1,5 +1,6 @@
 # Git 增强插件
 
+[![Version](https://img.shields.io/badge/version-1.0.3-orange)]()
 [![Build](https://img.shields.io/badge/build-passing-brightgreen)]()
 [![JetBrains](https://img.shields.io/badge/IntelliJ-2025.3.5-blue)](https://www.jetbrains.com/idea/)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue)]()

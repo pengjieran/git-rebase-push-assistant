@@ -7,12 +7,12 @@ import com.examplecn.service.MergeRequestResult
 import com.examplecn.service.MergeRequestService
 import com.examplecn.service.OpenAIService
 import com.intellij.openapi.application.ApplicationManager
-import com.intellij.openapi.application.ModalityState
 import com.intellij.openapi.components.service
 import com.intellij.openapi.progress.ProgressIndicator
 import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.progress.Task
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.ui.ComboBox
 import com.intellij.openapi.ui.DialogWrapper
 import com.intellij.openapi.ui.Messages
 import com.intellij.icons.AllIcons
@@ -40,12 +40,12 @@ class UnifiedRebaseDialog(
     private val branches: List<String>
     private val changedFiles: List<String>
 
-    private val branchComboBox: JComboBox<String>
+    private val branchComboBox: ComboBox<String>
     private val messageArea = JBTextArea(4, 50)
     private val createMRCheckBox: JBCheckBox
     private val aiGenerateButton: JButton
 
-    private val appendTypeComboBox: JComboBox<String>
+    private val appendTypeComboBox: ComboBox<String>
     private val appendInputField: JTextField
     private val addAppendButton: JButton
 
@@ -78,7 +78,7 @@ class UnifiedRebaseDialog(
         }
 
         // 创建可编辑的下拉框，支持直接输入和模糊搜索
-        branchComboBox = JComboBox(branches.toTypedArray())
+        branchComboBox = ComboBox(branches.toTypedArray())
         branchComboBox.isEditable = true
         branchComboBox.selectedItem = suggestedBranch ?: ""
 
@@ -137,7 +137,7 @@ class UnifiedRebaseDialog(
         aiGenerateButton.icon = AllIcons.Actions.IntentionBulb
         aiGenerateButton.addActionListener { generateCommitMessageWithAI() }
 
-        appendTypeComboBox = JComboBox(arrayOf(
+        appendTypeComboBox = ComboBox(arrayOf(
             GitRebaseBundle.message("commit.append.co.authored"),
             GitRebaseBundle.message("commit.append.jira"),
             GitRebaseBundle.message("commit.append.webhook"),
@@ -168,10 +168,10 @@ class UnifiedRebaseDialog(
         setCancelButtonText(GitRebaseBundle.message("dialog.cancel.button"))
     }
 
-    override fun createActions(): Array<javax.swing.Action> {
+    override fun createActions(): Array<Action> {
         val actions = super.createActions()
         // 将OK按钮设置为默认按钮（获得焦点并使用蓝色高亮样式）
-        myOKAction.putValue(javax.swing.Action.DEFAULT, true)
+        myOKAction.putValue(Action.DEFAULT, true)
         return actions
     }
 
@@ -188,7 +188,7 @@ class UnifiedRebaseDialog(
         contentPanel.add(Box.createVerticalStrut(8))
 
         val branchPanel = JPanel(BorderLayout(8, 0))
-        branchPanel.border = JBUI.Borders.empty(0, 12, 0, 0)
+        branchPanel.border = JBUI.Borders.emptyLeft(12)
 
         val branchIcon = JBLabel(AllIcons.Vcs.Branch)
         branchPanel.add(branchIcon, BorderLayout.WEST)
@@ -204,7 +204,7 @@ class UnifiedRebaseDialog(
         contentPanel.add(Box.createVerticalStrut(8))
 
         val filesPanel = JPanel(BorderLayout(0, 8))
-        filesPanel.border = JBUI.Borders.empty(0, 12, 0, 0)
+        filesPanel.border = JBUI.Borders.emptyLeft(12)
 
         val filesCountLabel = JBLabel()
         if (changedFiles.isEmpty()) {
@@ -515,7 +515,7 @@ class UnifiedRebaseDialog(
             if (result == Messages.YES) {
                 // 打开设置页面
                 com.intellij.openapi.options.ShowSettingsUtil.getInstance()
-                    .showSettingsDialog(project, "Git Rebase & Push")
+                    .showSettingsDialog(project, GitRebaseBundle.message("settings.displayName"))
             }
             return
         }
