@@ -7,8 +7,11 @@
 
 ## [Unreleased]
 
+## [1.0.4] - 2026-07-25
+
 ### 新增功能
 - ✨ **可选是否变基**: 提交对话框新增"变基到目标分支"开关，关闭时跳过 fetch/rebase，直接 commit 并使用普通 `push`（而非 `--force-with-lease`）避免误覆盖远程历史。开关默认值从 `GitRebaseSettings` 读取并持久化。当"变基"与"提交MR"均未选中时，目标分支选择器将被禁用。
+- ✨ **GitHub PR 自动创建**: 当 origin 远程指向 GitHub 时，推送后可自动通过 GitHub REST API（`POST /repos/{owner}/{repo}/pulls`）创建 Pull Request。首次使用弹框提示输入 Personal Access Token（需 `repo` 权限），Token 安全存储于 `PasswordSafe`；创建前查重已有 open PR，避免重复；任何失败均回退到手动创建链接。
 
 ## [1.0.3] - 2026-07-23
 
@@ -67,5 +70,4 @@
 
 ### 已知限制
 - ⚠️ 多仓库项目仅操作第一个仓库
-- ⚠️ GitHub PR 自动创建尚未实现
 - ⚠️ 不支持交互式 rebase (`-i`)

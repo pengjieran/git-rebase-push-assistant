@@ -1,50 +1,50 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+本文件为 Claude Code（claude.ai/code）在本仓库中工作时提供指导。
 
-## Project overview
+## 项目概述
 
-An IntelliJ IDEA plugin (Kotlin) with two main features:
-1. **Git Rebase & Push** — Adds a "变基并提交推送" action to the Git commit UI that automates fetch → rebase → commit → force-push (`--force-with-lease`) → optionally create GitLab MR
-2. **Arthas Hotfix Generator** — Right-click action on `.java`/`.kt`/`.class` files that generates Base64-encoded shell scripts for Alibaba Arthas hot-patching in production
+一个 IntelliJ IDEA 插件（Kotlin 编写），包含两大功能：
+1. **Git 变基与推送** —— 在 Git 提交界面新增「变基并提交推送」操作，自动执行 fetch → rebase → commit → 强制推送（`--force-with-lease`）→ 可选创建 GitLab MR。变基可开关：当「变基到目标分支」开关关闭时，跳过 fetch/rebase，改用普通 `push`（而非 `--force-with-lease`）。
+2. **Arthas 热修复生成器** —— 在 `.java`/`.kt`/`.class` 文件上的右键操作，生成 Base64 编码的 shell 脚本，用于阿里 Arthas 生产环境热修复。
 
-## Build and development commands
+## 构建与开发命令
 
 ```bash
-./gradlew buildPlugin      # Build the plugin; output at build/distributions/git-plugin-*.zip
-./gradlew runIde            # Launch a sandboxed IDE instance with the plugin installed
-./gradlew test              # Run tests (via the `check` lifecycle task)
-./gradlew verifyPlugin      # Check plugin compatibility against target IntelliJ versions
+./gradlew buildPlugin      # 构建插件；产物在 build/distributions/git-plugin-*.zip
+./gradlew runIde            # 启动装有该插件的沙箱 IDE 实例
+./gradlew test              # 运行测试（通过 `check` 生命周期任务）
+./gradlew verifyPlugin      # 校验插件与目标 IntelliJ 版本的兼容性
 ```
 
-Predefined Run/Debug configurations exist in `.run/` (Run Plugin, Run Tests, Run Verifications) that wrap the same Gradle tasks.
+`.run/` 下预置了运行/调试配置（Run Plugin、Run Tests、Run Verifications），封装了相同的 Gradle 任务。
 
-Requires JDK 17+. Target platform is IntelliJ IDEA 2025.3.5, declared via `intellijIdea("2025.3.5")` in `build.gradle.kts`, with `Git4Idea` as a bundled plugin dependency.
+需要 JDK 17+。目标平台为 IntelliJ IDEA 2025.3.5，在 `build.gradle.kts` 中通过 `intellijIdea("2025.3.5")` 声明，并以 `Git4Idea` 作为捆绑插件依赖。
 
-## Build status
+## 构建状态
 
-The project compiles and builds successfully. `src/test/kotlin` is empty — no tests exist yet.
+项目可正常编译和构建。`src/test/kotlin` 为空 —— 尚无任何测试。
 
-**GitHub PR** — auto-creation is not yet implemented; returns a manual-creation link.
+**GitHub PR** —— 已支持自动创建：通过 GitHub REST API（`POST /repos/{owner}/{repo}/pulls`）创建 PR，Token 存储在 `PasswordSafe`；创建前会查重已有 open PR，失败时回退到手动创建链接。
 
-## Architecture
+## 架构
 
-Package root: `src/main/kotlin/com/examplecn/`
+包根路径：`src/main/kotlin/com/examplecn/`
 
-**`action/`** — UI entry points (two registered actions):
-- `GitRebaseAndPushAction` — surfaces in the Git commit dialog (`Vcs.CommitExecutor.Actions` group). Enabled only when the project has at least one Git repository. Always operates on `repositories.firstOrNull()` — multi-repo projects are not disambiguated. Launches `UnifiedRebaseDialog`, which combines all configuration and progress display. After the user confirms, runs all steps synchronously on the EDT: add + commit → fetch → rebase → force-push → optionally create MR. Progress text updates inline; dialog auto-closes 2 seconds after completion.
-- `ArthasHotfixAction` — surfaces in `ToolsMenu` and `ProjectViewPopupMenu`. Accepts `.java`, `.kt`, or `.class` file selections. For source files, locates the corresponding compiled `.class` by searching common output directories (`target/classes`, `build/classes/kotlin/main`, `out/production/…`). Delegates to `ArthasHotfixService`, then shows `ArthasScriptOutputDialog` with copy/save options.
+**`action/`** —— UI 入口（两个已注册的 action）：
+- `GitRebaseAndPushAction` —— 出现在 Git 提交对话框（`Vcs.Commit.PrimaryCommitActions` 组）。仅当项目至少有一个 Git 仓库时启用。始终操作 `repositories.firstOrNull()` —— 多仓库项目不做消歧。启动 `UnifiedRebaseDialog`，该对话框整合了全部配置与进度显示。用户确认后，在 EDT 上同步执行所有步骤：add + commit → fetch → rebase → 强制推送 → 可选创建 MR。进度文本就地更新；完成 2 秒后对话框自动关闭。
+- `ArthasHotfixAction` —— 出现在 `ToolsMenu`、`ProjectViewPopupMenu`、`EditorPopupMenu` 和 `EditorTabPopupMenu` 中。接受 `.java`、`.kt` 或 `.class` 文件选择。对于源文件，会在常见输出目录（`target/classes`、`build/classes/kotlin/main`、`out/production/…`）中搜索定位对应的已编译 `.class`。委托给 `ArthasHotfixService`，随后弹出带复制/保存选项的 `ArthasScriptOutputDialog`。
 
-**`service/`** — four project-level services (`@Service(Service.Level.PROJECT)`):
-- `GitRebaseService` — wraps all Git4Idea `GitLineHandler` calls (fetch, rebase, push, status, add, commit, remote lookup). All Git operations must run inside `runReadAction` (reads) or `runWriteAction` (mutating) to satisfy EDT threading requirements.
-- `OpenAIService` — calls the OpenAI-compatible chat completions API using `HttpURLConnection` (no external libraries). Builds the prompt from the git diff and generates a conventional commit message in Chinese.
-- `MergeRequestService` — POSTs to `/api/v4/projects/{project_path}/merge_requests`. Parses the project's remote URL (SSH and HTTPS, including subgroups) to derive the GitLab base URL and project path. GitLab Personal Access Token is stored in IntelliJ's `PasswordSafe` (system keychain).
-- `ArthasHotfixService` — reads a `.class` file, gzip-compresses then Base64-encodes it (MIME, 76-col wrapped), and generates a self-contained bash script that decodes + `gunzip`s the file to `/tmp`, verifies it against the source SHA-256 (`sha256sum`/`shasum` fallback), then prints the Arthas `retransform` command.
+**`service/`** —— 四个项目级服务（`@Service(Service.Level.PROJECT)`）：
+- `GitRebaseService` —— 封装所有 Git4Idea 的 `GitLineHandler` 调用（fetch、rebase、push、status、add、commit、remote 查询）。所有 Git 操作都必须在 `runReadAction`（读）或 `runWriteAction`（写）中执行，以满足 EDT 线程要求。
+- `OpenAIService` —— 使用 `HttpURLConnection`（无外部库）调用 OpenAI 兼容的 chat completions API。基于 git diff 构建提示词，生成中文的规范化提交消息。
+- `MergeRequestService` —— 根据 origin 远程 URL 检测平台（含 `github.com` 判为 GitHub，否则 GitLab）。GitLab：向 `/api/v4/projects/{project_path}/merge_requests` 发起 POST，解析远程 URL（SSH 与 HTTPS，含子组）推导基础 URL 和项目路径。GitHub：向 `https://api.github.com/repos/{owner}/{repo}/pulls` 发起 POST。两者均先查重已有 open MR/PR，缺 Token 时弹框提示输入，令牌分别以 `GitLabToken`/`GitHubToken` 存储在 IntelliJ 的 `PasswordSafe`（系统钥匙串）中，任何失败都回退到手动创建链接。
+- `ArthasHotfixService` —— 读取 `.class` 文件，先 gzip 压缩再 Base64 编码（MIME，76 列换行），生成一个自包含的 bash 脚本：解码并 `gunzip` 到 `/tmp`，对照源文件 SHA-256 校验（`sha256sum`/`shasum` 回退），最后打印 Arthas 的 `retransform` 命令。
 
-**`config/`** — `GitRebaseSettings` (`PersistentStateComponent`) persists non-secret preferences (default target branch, autostash, notify-on-success, OpenAI endpoint/model, non-secret GitLab config) to `gitRebasePlugin.xml`. `GitRebaseSettingsConfigurable` renders the settings UI under `Tools > Git Rebase & Push`.
+**`config/`** —— `GitRebaseSettings`（`PersistentStateComponent`）将非机密偏好（默认目标分支、autostash、成功时通知、OpenAI 端点/模型、非机密 GitLab 配置）持久化到 `gitRebasePlugin.xml`。`GitRebaseSettingsConfigurable` 在 `Tools > Git Rebase & Push` 下渲染设置界面。
 
-**`bundle/`** — `GitRebaseBundle` wraps `ResourceBundle` lookups. Message properties files live in `src/main/resources/messages/` with a `_zh_CN` variant for Chinese localization.
+**`bundle/`** —— `GitRebaseBundle` 封装 `ResourceBundle` 查找。消息属性文件位于 `src/main/resources/messages/`，并带有用于中文本地化的 `_zh_CN` 变体。
 
-**Threading model:** All Git operations use `ApplicationManager.getApplication().run{Read,Write}Action(Computable {...})`. The entire rebase-and-push workflow executes synchronously on the EDT — no background coroutines or `ProgressManager` tasks.
+**线程模型：** 所有 Git 操作均使用 `ApplicationManager.getApplication().run{Read,Write}Action(Computable {...})`。整个变基推送工作流在 EDT 上同步执行 —— 没有后台协程，也没有 `ProgressManager` 任务。
 
-**No external runtime dependencies** — JSON construction and parsing is done manually with string manipulation to avoid adding libraries to the plugin classpath.
+**无外部运行时依赖** —— JSON 的构造与解析均通过字符串操作手工完成，以避免向插件 classpath 引入库。
