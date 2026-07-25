@@ -41,7 +41,7 @@ class MergeRequestService(private val project: Project) {
 
         return when (platform) {
             Platform.GITLAB -> createGitLabMR(remoteUrl, sourceBranch, targetBranch, description)
-            Platform.GITHUB -> createGitHubPR(remoteUrl, sourceBranch, targetBranch)
+            Platform.GITHUB -> createGitHubPR(remoteUrl, sourceBranch, targetBranch, description)
         }
     }
 
@@ -230,16 +230,169 @@ class MergeRequestService(private val project: Project) {
     private fun createGitHubPR(
         remoteUrl: String,
         sourceBranch: String,
-        targetBranch: String
+        targetBranch: String,
+        description: String
     ): MergeRequestResult {
         val repoPath = parseGitHubRepoPath(remoteUrl)
             ?: return MergeRequestResult.Error(GitRebaseBundle.message("mr.error.parse.github.url", remoteUrl))
 
-        val prUrl = "https://github.com/$repoPath/compare/$targetBranch...$sourceBranch"
+        val compareUrl = "https://github.com/$repoPath/compare/$targetBranch...$sourceBranch"
 
-        return MergeRequestResult.NotConfigured(
-            "${GitRebaseBundle.message("mr.github.not.implemented")}\n${GitRebaseBundle.message("mr.manual.link")}\n$prUrl"
-        )
+        // 获取GitHub Token，没有则提示输入
+        var token = getGitHubToken()
+        if (token.isNullOrEmpty()) {
+            token = promptForGitHubToken()
+            if (token.isNullOrEmpty()) {
+                return MergeRequestResult.NotConfigured(
+                    "${GitRebaseBundle.message("mr.github.not.configured")}\n${GitRebaseBundle.message("mr.manual.link")}\n$compareUrl"
+                )
+            }
+        }
+
+        // 检查是否已存在相同的PR
+        val existingPR = checkExistingGitHubPR(repoPath, token, sourceBranch, targetBranch)
+        if (existingPR != null) {
+            return MergeRequestResult.Success(existingPR)
+        }
+
+        return try {
+            val title = GitRebaseBundle.message("gitlab.mr.title", sourceBranch, targetBranch)
+            val response = callGitHubAPI(repoPath, token, sourceBranch, targetBranch, title, description)
+
+            if (response.success) {
+                MergeRequestResult.Success(response.mrUrl)
+            } else {
+                MergeRequestResult.Error(
+                    "${GitRebaseBundle.message("mr.github.api.failed", response.error)}\n${GitRebaseBundle.message("mr.manual.link")}\n$compareUrl"
+                )
+            }
+        } catch (e: Exception) {
+            MergeRequestResult.Error(
+                "${GitRebaseBundle.message("mr.exception", e.message ?: "Unknown")}\n${GitRebaseBundle.message("mr.manual.link")}\n$compareUrl"
+            )
+        }
+    }
+
+    /**
+     * 检查GitHub上是否已存在相同的open状态PR（head=sourceBranch, base=targetBranch）
+     * 返回已存在PR的html_url，不存在则返回null
+     */
+    private fun checkExistingGitHubPR(
+        repoPath: String,
+        token: String,
+        sourceBranch: String,
+        targetBranch: String
+    ): String? {
+        return try {
+            // GitHub head过滤需要 owner:branch 形式
+            val owner = repoPath.substringBefore('/')
+            val head = URLEncoder.encode("$owner:$sourceBranch", "UTF-8")
+            val base = URLEncoder.encode(targetBranch, "UTF-8")
+            val apiUrl = "https://api.github.com/repos/$repoPath/pulls?state=open&head=$head&base=$base"
+
+            val connection = URI(apiUrl).toURL().openConnection() as HttpURLConnection
+            applyGitHubHeaders(connection, token)
+            connection.requestMethod = "GET"
+            connection.connectTimeout = 10000
+            connection.readTimeout = 10000
+
+            if (connection.responseCode in 200..299) {
+                val body = connection.inputStream.bufferedReader().use { it.readText() }
+                if (body.trim().startsWith("[") && body.trim() != "[]") {
+                    extractJsonValue(body, "html_url")
+                } else {
+                    null
+                }
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    private fun callGitHubAPI(
+        repoPath: String,
+        token: String,
+        sourceBranch: String,
+        targetBranch: String,
+        title: String,
+        description: String
+    ): GitHubAPIResponse {
+        return try {
+            val apiUrl = "https://api.github.com/repos/$repoPath/pulls"
+            val connection = URI(apiUrl).toURL().openConnection() as HttpURLConnection
+
+            connection.requestMethod = "POST"
+            applyGitHubHeaders(connection, token)
+            connection.setRequestProperty("Content-Type", "application/json")
+            connection.doOutput = true
+            connection.connectTimeout = 10000
+            connection.readTimeout = 10000
+
+            val jsonBody = buildJsonString(mapOf(
+                "title" to title,
+                "head" to sourceBranch,
+                "base" to targetBranch,
+                "body" to description
+            ))
+
+            OutputStreamWriter(connection.outputStream).use { writer ->
+                writer.write(jsonBody)
+                writer.flush()
+            }
+
+            val responseCode = connection.responseCode
+            if (responseCode in 200..299) {
+                val body = connection.inputStream.bufferedReader().use { it.readText() }
+                val prUrl = extractJsonValue(body, "html_url")
+                    ?: return GitHubAPIResponse(success = false, error = GitRebaseBundle.message("mr.response.no.url"))
+                GitHubAPIResponse(success = true, mrUrl = prUrl)
+            } else {
+                val errorBody = connection.errorStream?.bufferedReader()?.use { it.readText() } ?: "Unknown error"
+                GitHubAPIResponse(success = false, error = "HTTP $responseCode: $errorBody")
+            }
+        } catch (e: Exception) {
+            GitHubAPIResponse(success = false, error = e.message ?: "Unknown error")
+        }
+    }
+
+    private fun applyGitHubHeaders(connection: HttpURLConnection, token: String) {
+        connection.setRequestProperty("Authorization", "Bearer $token")
+        connection.setRequestProperty("Accept", "application/vnd.github+json")
+        connection.setRequestProperty("X-GitHub-Api-Version", "2022-11-28")
+        connection.setRequestProperty("User-Agent", "git-rebase-push-assistant")
+    }
+
+    private fun getGitHubToken(): String? {
+        return passwordSafe.getPassword(createGitHubCredentialAttributes())
+    }
+
+    private fun saveGitHubToken(token: String) {
+        passwordSafe.set(createGitHubCredentialAttributes(), Credentials("github-token", token))
+    }
+
+    private fun createGitHubCredentialAttributes(): CredentialAttributes {
+        val serviceName = generateServiceName("GitHubToken", "https://github.com")
+        return CredentialAttributes(serviceName, "github-token")
+    }
+
+    private fun promptForGitHubToken(): String? {
+        var token: String? = null
+        com.intellij.openapi.application.ApplicationManager.getApplication().invokeAndWait {
+            token = Messages.showInputDialog(
+                project,
+                GitRebaseBundle.message("github.token.prompt.message"),
+                GitRebaseBundle.message("github.token.prompt.title"),
+                Messages.getQuestionIcon()
+            )
+        }
+
+        if (!token.isNullOrEmpty()) {
+            saveGitHubToken(token!!)
+        }
+
+        return token
     }
 
     private fun getGitLabToken(baseUrl: String): String? {
@@ -308,6 +461,12 @@ class MergeRequestService(private val project: Project) {
     )
 
     private data class GitLabAPIResponse(
+        val success: Boolean,
+        val mrUrl: String = "",
+        val error: String = ""
+    )
+
+    private data class GitHubAPIResponse(
         val success: Boolean,
         val mrUrl: String = "",
         val error: String = ""

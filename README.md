@@ -1,6 +1,6 @@
 # Git Enhancement Plugin
 
-[![Version](https://img.shields.io/badge/version-1.0.3-orange)]()
+[![Version](https://img.shields.io/badge/version-1.0.4-orange)]()
 [![Build](https://img.shields.io/badge/build-passing-brightgreen)]()
 [![JetBrains](https://img.shields.io/badge/IntelliJ-2025.3.5-blue)](https://www.jetbrains.com/idea/)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue)]()
@@ -30,10 +30,10 @@ A powerful IntelliJ IDEA plugin that enhances Git workflows with intelligent reb
 - **Batch Support**: Process multiple `.class` files simultaneously
 - **Flexible Output**: Copy to clipboard or save as executable script
 
-### 🚀 GitLab Integration
-- **Auto Create MR**: Automatically creates Merge Requests after push
+### 🚀 Git Platform Integration
+- **Auto Create MR/PR**: Automatically creates Merge Requests (GitLab) or Pull Requests (GitHub) after push
 - **Secure Storage**: Stores Personal Access Token in system keychain using `PasswordSafe`
-- **Smart Parsing**: Auto-detects GitLab URL and project path (supports SSH/HTTPS, subgroups)
+- **Smart Parsing**: Auto-detects platform (GitHub / GitLab), URL and project path (supports SSH/HTTPS, subgroups)
 - **Graceful Fallback**: Provides pre-filled manual creation link on API failure
 
 ## 📦 Installation
@@ -339,7 +339,7 @@ Use the "Test Connection" button to verify configuration.
 
 ### Q4: Does it support GitHub?
 
-**A**: Currently only GitLab auto-MR creation is supported. GitHub PR auto-creation is not yet implemented, but a pre-filled manual creation link is provided.
+**A**: Yes. Both GitLab (auto-MR) and GitHub (auto-PR) are supported — the platform is auto-detected from the origin remote URL. On first use you'll be prompted for a Personal Access Token (GitHub needs the `repo` scope), stored securely in the system keychain. If the API call fails, a pre-filled manual creation link is provided.
 
 ### Q5: How to use Arthas scripts?
 
@@ -367,13 +367,11 @@ retransform /tmp/YourClass_*.class
 ## 🐛 Known Limitations
 
 - ❌ Multi-repo projects only operate on first repository
-- ❌ GitHub PR auto-creation not yet implemented
 - ❌ Interactive rebase (e.g., `-i`) not supported
 - ❌ Arthas scripts only support single class files (no inner class splitting)
 
 ## 🔮 Roadmap
 
-- [ ] Support GitHub PR auto-creation
 - [ ] Support multi-repo project selection
 - [ ] Add interactive conflict resolution wizard
 - [ ] Support custom AI prompt templates
