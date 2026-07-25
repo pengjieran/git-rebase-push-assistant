@@ -1,6 +1,6 @@
 # Git 增强插件
 
-[![Version](https://img.shields.io/badge/version-1.0.3-orange)]()
+[![Version](https://img.shields.io/badge/version-1.0.4-orange)]()
 [![Build](https://img.shields.io/badge/build-passing-brightgreen)]()
 [![JetBrains](https://img.shields.io/badge/IntelliJ-2025.3.5-blue)](https://www.jetbrains.com/idea/)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue)]()
@@ -28,10 +28,10 @@
 - **批量支持**：可同时选中多个 `.class` 文件批量处理
 - **灵活输出**：支持复制到剪贴板或保存为可执行脚本
 
-### 🚀 GitLab 集成
-- **自动创建 MR**：推送后自动创建 Merge Request
+### 🚀 Git 平台集成
+- **自动创建 MR/PR**：推送后自动创建 Merge Request（GitLab）或 Pull Request（GitHub）
 - **安全存储**：使用系统密钥链存储 Personal Access Token
-- **智能解析**：自动识别 GitLab URL 和项目路径（支持 SSH/HTTPS、子组）
+- **智能解析**：自动识别平台（GitHub / GitLab）、URL 和项目路径（支持 SSH/HTTPS、子组）
 - **友好回退**：API 失败时提供预填充的手动创建链接
 
 ## 📦 安装
@@ -337,7 +337,7 @@ git-plugin/
 
 ### Q4：支持 GitHub 吗？
 
-**A**：目前仅支持 GitLab 自动创建 MR。GitHub PR 自动创建功能尚未实现，但会提供预填充的手动创建链接。
+**A**：支持。GitLab（自动创建 MR）和 GitHub（自动创建 PR）均已支持 —— 根据 origin 远程 URL 自动识别平台。首次使用时会弹框提示输入 Personal Access Token（GitHub 需要 `repo` 权限），Token 安全存储于系统密钥链。API 调用失败时提供预填充的手动创建链接。
 
 ### Q5：Arthas 脚本如何使用？
 
@@ -365,13 +365,11 @@ retransform /tmp/YourClass_*.class
 ## 🐛 已知限制
 
 - ❌ 多仓库项目仅操作第一个仓库
-- ❌ GitHub PR 自动创建尚未实现
 - ❌ 不支持交互式 rebase（如 `-i`）
 - ❌ Arthas 脚本仅支持单个类文件（不支持内部类拆分）
 
 ## 🔮 路线图
 
-- [ ] 支持 GitHub PR 自动创建
 - [ ] 支持多仓库项目选择
 - [ ] 添加交互式冲突解决向导
 - [ ] 支持自定义 AI Prompt 模板
