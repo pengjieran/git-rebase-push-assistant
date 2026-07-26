@@ -18,3 +18,19 @@
 - 模板作为非敏感配置持久化到 `gitRebasePlugin.xml`。
 
 **涉及模块**：`service/OpenAIService`、`config/GitRebaseSettings`、`config/GitRebaseSettingsConfigurable`。
+
+## 需求 2：Arthas 热更新 —— 源文件选中时显示重新编译按钮
+
+**背景**：当用户选中 `.java`/`.kt` 源文件触发热更新脚本生成时，脚本内容依赖已编译的 `.class` 文件。若源文件修改后尚未编译，生成的脚本会基于旧字节码，容易造成误操作。
+
+**目标**：在 `ArthasScriptOutputDialog` 中，当来源是源文件时显示「重新编译」按钮，点击后自动触发 IntelliJ 编译该文件，编译成功后刷新脚本内容。
+
+**要点**：
+- `ArthasHotfixAction.generateHotfixScript()` 传入 `sourceFile: VirtualFile?`，仅在源文件路径时非空。
+- `ArthasScriptOutputDialog` 新增可选 `sourceFile` 参数；非空时在按钮栏追加「重新编译」按钮。
+- 点击后调用 `CompilerManager.getInstance(project).compile(arrayOf(sourceFile), callback)`，编译期间禁用按钮。
+- 编译成功（`!aborted && errors == 0`）时重新调用 `ArthasHotfixService.generateHotfixScript(classFile)` 并刷新文本区；失败时提示错误。
+- `scriptContent` / `clipboardContent` 改为 `var` 以支持刷新后的复制/保存动作使用最新内容。
+- `build.gradle.kts` 中可能需要在 `bundledPlugin` 中补充 `"com.intellij.java"` 依赖（`CompilerManager` 属于 Java 插件模块），需验证。
+
+**涉及模块**：`action/ArthasHotfixAction`、`action/ArthasScriptOutputDialog`、`build.gradle.kts`。

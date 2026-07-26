@@ -12,6 +12,15 @@
 ### 新增功能
 - ✨ **可选是否变基**: 提交对话框新增"变基到目标分支"开关，关闭时跳过 fetch/rebase，直接 commit 并使用普通 `push`（而非 `--force-with-lease`）避免误覆盖远程历史。开关默认值从 `GitRebaseSettings` 读取并持久化。当"变基"与"提交MR"均未选中时，目标分支选择器将被禁用。
 - ✨ **GitHub PR 自动创建**: 当 origin 远程指向 GitHub 时，推送后可自动通过 GitHub REST API（`POST /repos/{owner}/{repo}/pulls`）创建 Pull Request。首次使用弹框提示输入 Personal Access Token（需 `repo` 权限），Token 安全存储于 `PasswordSafe`；创建前查重已有 open PR，避免重复；任何失败均回退到手动创建链接。
+- ✨ **源文件直接生成热更新脚本**: 编辑器右键菜单（`EditorPopupMenu`、`EditorTabPopupMenu`）支持直接对 `.java`/`.kt` 源文件触发 Arthas 热修复脚本生成，无需先手动定位 `.class` 文件；插件自动在常见输出目录中查找对应的编译产物。
+
+### 改进
+- 🎨 **Arthas 双版本脚本输出**: 脚本输出对话框新增「完整版」与「剪贴板版」两种格式——完整版含 SHA-256 完整性校验，剪贴板版去除校验逻辑以便快速粘贴执行。
+- 🎨 **Arthas 上下文菜单过滤**: 右键菜单仅在选中 `.java`、`.kt` 或 `.class` 文件时显示，避免在无关文件上误触发。
+- ⚡ **Arthas 线程模型优化**: `ArthasHotfixAction` 改用 `ActionUpdateThread.BGT` 在后台线程执行 `update()` 检查，减少对 EDT 的占用。
+
+### 技术改进
+- 🔒 **Arthas 脚本完整性校验**: 热修复脚本内嵌 SHA-256 哈希，部署时自动与源文件比对，防止上传错误的 `.class` 文件。gzip 压缩后再 Base64 编码，有效减小脚本体积。
 
 ## [1.0.3] - 2026-07-23
 
