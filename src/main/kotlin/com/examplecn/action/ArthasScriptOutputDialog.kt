@@ -94,13 +94,19 @@ class ArthasScriptOutputDialog(
             }
         }
 
+        val saveClassAction = object : AbstractAction(GitRebaseBundle.message("arthas.output.save.class.button")) {
+            override fun actionPerformed(e: java.awt.event.ActionEvent?) {
+                saveClassFile()
+            }
+        }
+
         val closeAction = object : AbstractAction(GitRebaseBundle.message("arthas.output.close.button")) {
             override fun actionPerformed(e: java.awt.event.ActionEvent?) {
                 close(OK_EXIT_CODE)
             }
         }
 
-        return arrayOf(copyAction, saveAction, closeAction)
+        return arrayOf(copyAction, saveAction, saveClassAction, closeAction)
     }
 
     private fun saveScript() {
@@ -143,6 +149,47 @@ class ArthasScriptOutputDialog(
                 Messages.showErrorDialog(
                     project,
                     GitRebaseBundle.message("arthas.error.save.failed", e.message ?: "Unknown error"),
+                    GitRebaseBundle.message("error.title")
+                )
+            }
+        }
+    }
+
+    private fun saveClassFile() {
+        val descriptor = FileSaverDescriptor(
+            GitRebaseBundle.message("arthas.output.save.class.title"),
+            GitRebaseBundle.message("arthas.output.save.class.description"),
+            "class"
+        )
+
+        val saveDialog = FileChooserFactory.getInstance()
+            .createSaveFileDialog(descriptor, project)
+
+        val defaultFileName = "${className}.class"
+
+        // Get base directory as VirtualFile
+        val baseDir = com.intellij.openapi.vfs.LocalFileSystem.getInstance()
+            .findFileByPath(project.basePath ?: System.getProperty("user.home"))
+
+        val fileWrapper = saveDialog.save(baseDir, defaultFileName)
+        if (fileWrapper != null) {
+            try {
+                // VirtualFileWrapper.getFile() returns Path
+                val targetPath = fileWrapper.file
+                val targetFile = File(targetPath.toString())
+
+                // Copy the class file to the target location
+                classFile.copyTo(targetFile, overwrite = true)
+
+                Messages.showInfoMessage(
+                    project,
+                    GitRebaseBundle.message("arthas.output.class.saved", targetPath.toString()),
+                    GitRebaseBundle.message("arthas.dialog.title")
+                )
+            } catch (e: Exception) {
+                Messages.showErrorDialog(
+                    project,
+                    GitRebaseBundle.message("arthas.error.save.class.failed", e.message ?: "Unknown error"),
                     GitRebaseBundle.message("error.title")
                 )
             }
