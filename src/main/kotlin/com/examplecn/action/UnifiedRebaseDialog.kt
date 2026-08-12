@@ -89,9 +89,14 @@ class UnifiedRebaseDialog(
         val editor = branchComboBox.editor.editorComponent as? JTextField
         editor?.let { textField ->
             textField.document.addDocumentListener(object : javax.swing.event.DocumentListener {
-                override fun insertUpdate(e: javax.swing.event.DocumentEvent) = filterBranches()
-                override fun removeUpdate(e: javax.swing.event.DocumentEvent) = filterBranches()
-                override fun changedUpdate(e: javax.swing.event.DocumentEvent) = filterBranches()
+                override fun insertUpdate(e: javax.swing.event.DocumentEvent) = scheduleFilter()
+                override fun removeUpdate(e: javax.swing.event.DocumentEvent) = scheduleFilter()
+                override fun changedUpdate(e: javax.swing.event.DocumentEvent) = scheduleFilter()
+
+                // 使用 invokeLater 避免在文档通知中修改 UI
+                private fun scheduleFilter() {
+                    javax.swing.SwingUtilities.invokeLater { filterBranches() }
+                }
 
                 private fun filterBranches() {
                     if (branchComboBox.isPopupVisible) {
@@ -405,6 +410,7 @@ class UnifiedRebaseDialog(
     }
 
     private fun requiresInput(type: String): Boolean {
+        // Co-Authored-By 现在使用对话框选择，不需要输入框
         return type == GitRebaseBundle.message("commit.append.jira") ||
                type == GitRebaseBundle.message("commit.append.custom")
     }
@@ -428,7 +434,15 @@ class UnifiedRebaseDialog(
         val input = appendInputField.text.trim()
 
         val tag = when (type) {
-            GitRebaseBundle.message("commit.append.co.authored") -> "Co-Authored-By"
+            GitRebaseBundle.message("commit.append.co.authored") -> {
+                // 弹出对话框选择 Co-Authored-By
+                val dialog = CoAuthoredByDialog(project)
+                if (dialog.showAndGet()) {
+                    dialog.getFormattedCoAuthoredBy()
+                } else {
+                    return
+                }
+            }
             GitRebaseBundle.message("commit.append.jira") -> {
                 if (input.isEmpty()) return
                 "\$(JIRA:$input)"
