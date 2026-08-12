@@ -89,9 +89,14 @@ class UnifiedRebaseDialog(
         val editor = branchComboBox.editor.editorComponent as? JTextField
         editor?.let { textField ->
             textField.document.addDocumentListener(object : javax.swing.event.DocumentListener {
-                override fun insertUpdate(e: javax.swing.event.DocumentEvent) = filterBranches()
-                override fun removeUpdate(e: javax.swing.event.DocumentEvent) = filterBranches()
-                override fun changedUpdate(e: javax.swing.event.DocumentEvent) = filterBranches()
+                override fun insertUpdate(e: javax.swing.event.DocumentEvent) = scheduleFilter()
+                override fun removeUpdate(e: javax.swing.event.DocumentEvent) = scheduleFilter()
+                override fun changedUpdate(e: javax.swing.event.DocumentEvent) = scheduleFilter()
+
+                // 使用 invokeLater 避免在文档通知中修改 UI
+                private fun scheduleFilter() {
+                    javax.swing.SwingUtilities.invokeLater { filterBranches() }
+                }
 
                 private fun filterBranches() {
                     if (branchComboBox.isPopupVisible) {
