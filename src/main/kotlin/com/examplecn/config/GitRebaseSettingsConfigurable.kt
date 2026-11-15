@@ -2,6 +2,8 @@ package com.examplecn.config
 
 import com.examplecn.bundle.GitRebaseBundle
 import com.examplecn.service.OpenAIService
+import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.application.ModalityState
 import com.intellij.openapi.options.Configurable
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.Messages
@@ -88,12 +90,12 @@ class GitRebaseSettingsConfigurable(private val project: Project) : Configurable
         testButton.isEnabled = false
         testButton.text = "测试中..."
 
-        Thread {
+        ApplicationManager.getApplication().executeOnPooledThread {
             try {
                 val service = OpenAIService.getInstance(project)
                 val result = service.testConnection(baseUrl, apiKey, model)
 
-                javax.swing.SwingUtilities.invokeLater {
+                ApplicationManager.getApplication().invokeLater({
                     testButton.isEnabled = true
                     testButton.text = "测试连接"
 
@@ -110,9 +112,9 @@ class GitRebaseSettingsConfigurable(private val project: Project) : Configurable
                             "测试连接"
                         )
                     }
-                }
+                }, ModalityState.stateForComponent(testButton))
             } catch (e: Exception) {
-                javax.swing.SwingUtilities.invokeLater {
+                ApplicationManager.getApplication().invokeLater({
                     testButton.isEnabled = true
                     testButton.text = "测试连接"
                     Messages.showErrorDialog(
@@ -120,8 +122,8 @@ class GitRebaseSettingsConfigurable(private val project: Project) : Configurable
                         "测试失败：\n${e.message}",
                         "测试连接"
                     )
-                }
+                }, ModalityState.stateForComponent(testButton))
             }
-        }.start()
+        }
     }
 }

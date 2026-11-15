@@ -100,16 +100,13 @@ class GitRebaseService(private val project: Project) {
      */
     fun getRemoteBranches(repository: GitRepository): List<String> {
         return try {
-            com.intellij.openapi.application.ApplicationManager.getApplication().runReadAction(
-                com.intellij.openapi.util.Computable {
-                    repository.branches.remoteBranches
-                        .mapNotNull { branch ->
-                            val branchName = branch.name.removePrefix("origin/")
-                            branchName.takeIf { it.isNotEmpty() }
-                        }
-                        .distinct()
-                        .sorted()
-                })
+            repository.branches.remoteBranches
+                .mapNotNull { branch ->
+                    val branchName = branch.name.removePrefix("origin/")
+                    branchName.takeIf { it.isNotEmpty() }
+                }
+                .distinct()
+                .sorted()
         } catch (e: Exception) {
             emptyList()
         }
@@ -180,11 +177,8 @@ class GitRebaseService(private val project: Project) {
      * 获取origin远程仓库URL
      */
     fun getRemoteUrl(repository: GitRepository): String? {
-        return com.intellij.openapi.application.ApplicationManager.getApplication()
-            .runReadAction(com.intellij.openapi.util.Computable {
-                repository.remotes.firstOrNull { it.name == "origin" }?.firstUrl
-                    ?: repository.remotes.firstOrNull()?.firstUrl
-            })
+        return repository.remotes.firstOrNull { it.name == "origin" }?.firstUrl
+            ?: repository.remotes.firstOrNull()?.firstUrl
     }
 
     /**
@@ -222,7 +216,7 @@ class GitRebaseService(private val project: Project) {
             forcePushBranch(repository, currentBranch)
             RebaseResult.Success
         } catch (e: VcsException) {
-            RebaseResult.Error(e.message ?: "Unknown error")
+            RebaseResult.Error(e.message)
         }
     }
 }

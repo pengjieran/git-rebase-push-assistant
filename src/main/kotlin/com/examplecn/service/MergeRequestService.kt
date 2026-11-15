@@ -32,10 +32,8 @@ class MergeRequestService(private val project: Project) {
         targetBranch: String,
         description: String
     ): MergeRequestResult {
-        val remoteUrl = com.intellij.openapi.application.ApplicationManager.getApplication()
-            .runReadAction(com.intellij.openapi.util.Computable {
-                repository.remotes.firstOrNull { it.name == "origin" }?.firstUrl
-            }) ?: return MergeRequestResult.NotConfigured(GitRebaseBundle.message("mr.error.no.remote"))
+        val remoteUrl = repository.remotes.firstOrNull { it.name == "origin" }?.firstUrl
+            ?: return MergeRequestResult.NotConfigured(GitRebaseBundle.message("mr.error.no.remote"))
 
         val platform = detectPlatform(remoteUrl)
 
