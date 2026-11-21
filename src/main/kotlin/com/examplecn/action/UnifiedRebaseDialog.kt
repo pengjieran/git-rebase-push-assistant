@@ -7,6 +7,7 @@ import com.examplecn.service.MergeRequestResult
 import com.examplecn.service.MergeRequestService
 import com.examplecn.service.OpenAIService
 import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.application.ModalityState
 import com.intellij.openapi.components.service
 import com.intellij.openapi.progress.ProgressIndicator
 import com.intellij.openapi.progress.ProgressManager
@@ -66,10 +67,7 @@ class UnifiedRebaseDialog(
         branches = preloadedBranches ?: service.getRemoteBranches(repository)
         changedFiles = preloadedChangedFiles ?: emptyList()
 
-        val currentBranch = ApplicationManager.getApplication()
-            .runReadAction(com.intellij.openapi.util.Computable {
-                repository.currentBranch?.name
-            })
+        val currentBranch = repository.currentBranch?.name
 
         val defaultTargetBranch = GitRebaseSettings.getInstance(project).state.defaultTargetBranch
         val suggestedBranch = when {
@@ -95,7 +93,7 @@ class UnifiedRebaseDialog(
 
                 // 使用 invokeLater 避免在文档通知中修改 UI
                 private fun scheduleFilter() {
-                    javax.swing.SwingUtilities.invokeLater { filterBranches() }
+                    ApplicationManager.getApplication().invokeLater({ filterBranches() }, ModalityState.any())
                 }
 
                 private fun filterBranches() {
@@ -338,10 +336,7 @@ class UnifiedRebaseDialog(
         val editor = branchComboBox.editor.editorComponent as? JTextField
         selectedBranch = (editor?.text ?: branchComboBox.selectedItem as? String ?: "").trim()
 
-        val currentBranch = ApplicationManager.getApplication()
-            .runReadAction(com.intellij.openapi.util.Computable {
-                repository.currentBranch?.name
-            })
+        val currentBranch = repository.currentBranch?.name
 
         // 目标分支仅在变基或创建MR时才需要，此时才校验
         val branchNeeded = shouldRebase || shouldCreateMR

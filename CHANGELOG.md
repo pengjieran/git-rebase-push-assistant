@@ -7,6 +7,18 @@
 
 ## [Unreleased]
 
+## [1.0.7] - 2026-11-15
+
+### 修复
+- 🐛 **提交框已填写的消息未带入对话框**: 原先通过反射调用 `COMMIT_MESSAGE_CONTROL.getText()` 读取提交消息，但该接口（`CommitMessageI`）并无此方法，读取会静默失败；现改为从 `VcsDataKeys.COMMIT_MESSAGE_DOCUMENT` 读取
+
+### 技术改进
+- ⚡ **「变基并推送」按钮在后台线程更新状态**: `GitRebaseAndPushAction` 重写 `getActionUpdateThread()` 为 `BGT`，不再依赖已弃用的 `OLD_EDT`
+- 🔧 **清理弃用 API**，Plugin Verifier 在 2025.3 ~ 2026.3（253/261/262/263）上全部 Compatible，且无弃用 API 警告：
+  - `SwingUtilities.invokeLater` 改为 `Application.invokeLater(..., ModalityState)`；设置页「测试连接」的裸 `Thread` 改为 `executeOnPooledThread`
+  - 移除 `runReadAction(Computable {...})` 包装：`GitRepository` 的分支、remote 等状态本身是线程安全的快照，无需读锁（Kotlin `runReadAction` 自 2026.1 起已弃用）
+  - `GitRebaseBundle` 改为委托 `DynamicBundle(Class, String)` 实例，不再继承 `DynamicBundle`（其 `String` 构造函数自 2026.3 起已弃用）
+
 ## [1.0.6] - 2026-08-12
 
 ### 新增功能
