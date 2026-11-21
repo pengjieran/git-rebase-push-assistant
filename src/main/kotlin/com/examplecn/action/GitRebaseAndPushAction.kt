@@ -1,6 +1,7 @@
 package com.examplecn.action
 
 import com.examplecn.bundle.GitRebaseBundle
+import com.intellij.openapi.actionSystem.ActionUpdateThread
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.components.service
 import com.intellij.openapi.ui.Messages
@@ -31,6 +32,8 @@ class GitRebaseAndPushAction : JButtonAction(GitRebaseBundle.message("action.nam
             font = JBUI.Fonts.toolbarFont()
         }
     }
+
+    override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.BGT
 
     override fun update(e: AnActionEvent) {
         val project = e.project
@@ -93,19 +96,6 @@ class GitRebaseAndPushAction : JButtonAction(GitRebaseBundle.message("action.nam
      * 该动作在 Vcs.Commit.PrimaryCommitActions 组中，可以访问提交上下文
      */
     private fun extractCommitMessage(e: AnActionEvent): String? {
-        try {
-            // 尝试从 VcsDataKeys.COMMIT_MESSAGE_CONTROL 获取
-            // 返回类型可能是 EditorTextField 或其他类型
-            val commitMessageControl = e.getData(VcsDataKeys.COMMIT_MESSAGE_CONTROL) ?: return null
-
-            // 使用反射调用 getText() 方法
-            val getTextMethod = commitMessageControl.javaClass.getMethod("getText")
-            val text = getTextMethod.invoke(commitMessageControl) as? String
-
-            return text?.takeIf { it.isNotBlank() }
-        } catch (ex: Exception) {
-            // 如果API不兼容或反射失败，返回null
-            return null
-        }
+        return e.getData(VcsDataKeys.COMMIT_MESSAGE_DOCUMENT)?.text?.takeIf { it.isNotBlank() }
     }
 }
